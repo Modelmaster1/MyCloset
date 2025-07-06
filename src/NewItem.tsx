@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,10 @@ import {
   LightbulbIcon,
   PlusIcon,
   XIcon,
+  Check,
+  ChevronsUpDown,
+  PlusCircle,
+  LoaderCircleIcon,
 } from "lucide-react";
 import { Card } from "./components/ui/card";
 import {
@@ -25,6 +29,24 @@ import {
 import { Label } from "./components/ui/label";
 import { Input } from "./components/ui/input";
 import { Color } from "convex/schema";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+import { Id } from "convex/_generated/dataModel";
+import { cn } from "@/lib/utils";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const existingBrands = [
   "Nike",
@@ -48,7 +70,7 @@ const existingBrands = [
   "Lacoste",
 ];
 
-const existingTypes = [
+export const existingTypes = [
   "polo",
   "shirt",
   "dress",
@@ -71,7 +93,7 @@ const existingTypes = [
   "trousers",
   "socks",
   "hat",
-  "underwear"
+  "underwear",
 ];
 
 const availableColors: {
@@ -142,17 +164,105 @@ const availableColors: {
   { tailclass: "bg-black text-white", color: "black", favourite: true },
 ];
 
+interface ClothingInfoFormItem {
+  file: File;
+  brand: string;
+  colors: Color[];
+  types: string[];
+  amount: number;
+}
+
 export default function NewItemForm() {
-  const [files, setFiles] = useState<File[]>([]);
+  const [items, setItems] = useState<ClothingInfoFormItem[]>([]);
+  const [location, setLocation] = useState<Id<"locations"> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const locations = useQuery(api.locations.list);
+  const createLocation = useMutation(api.locations.create);
+  const generateUploadUrl = useMutation(api.upload.generateUploadUrl);
+  const createClothingItem = useMutation(api.clothingItems.create);
 
   const handleFilesAccepted = useCallback((files: File[]) => {
-    setFiles(files);
+    const newClothingItems = files.map((file) => ({
+      file,
+      brand: "",
+      colors: [],
+      types: [],
+      amount: 1,
+    }));
+    setItems((prevItems) => [...prevItems, ...newClothingItems]);
   }, []);
+
+  function handleItemDataChange(item: ClothingInfoFormItem) {
+    setItems(items.map((i) => (i.file === item.file ? item : i)));
+  }
+
+  function handleRemoveItem(item: ClothingInfoFormItem) {
+    setItems(items.filter((i) => i.file !== item.file));
+  }
+
+  async function addItems() {
+    setLoading(true);
+
+    if (!location) {
+      alert("Please select a location.");
+      setLoading(false);
+      return;
+    }
+
+    const postUrl = await generateUploadUrl();
+    const numOfItems = items.length;
+    const itemsToAdd = items.map(async (item) => {
+      if (
+        item.brand.trim() === "" ||
+        item.colors.length === 0 ||
+        item.types.length === 0 ||
+        item.amount === 0
+      ) {
+        alert("Failed to add item. Please fill in all required fields.");
+        setLoading(false);
+        return;
+      }
+
+      const result = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": item.file!.type },
+        body: item.file,
+      });
+
+      const { storageId } = await result.json();
+
+      setItems((prevItems) => prevItems.filter((i) => i.file !== item.file));
+
+      return {
+        storageId: storageId as Id<"_storage">,
+        colors: item.colors,
+        brand: item.brand,
+        types: item.types,
+        piecesAmount: item.amount,
+      };
+    });
+
+    const itemsToAddArray = await Promise.all(itemsToAdd);
+    const filItems = itemsToAddArray.filter((item): item is NonNullable<typeof item> => item !== undefined)
+
+    await createClothingItem({
+      items: filItems,
+      location: location,
+    });
+
+    setLoading(false);
+    if (numOfItems - filItems.length == 0) {
+        setOpen(false);
+    }
+  }
+
   return (
     <>
-      <Dialog>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button>New Item</Button>
+          <Button variant="link">New Item</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
@@ -166,9 +276,53 @@ export default function NewItemForm() {
               onFilesAccepted={handleFilesAccepted}
               acceptedFileTypes={["image/png", "image/jpeg"]}
             />
-            {files.map((file) => (
-              <SingleItemForm key={file.name} file={file} />
+            <div className="flex gap-2 items-center justify-between">
+              <div className="flex flex-col gap-1">
+                <Label htmlFor="location">Location</Label>
+                <p className="text-xs opacity-50">
+                  Select a location to add the items to.
+                </p>
+              </div>
+              <SearchableCreateSelect
+                options={
+                  locations
+                    ? locations.map((location) => ({
+                        value: location._id,
+                        label: location.name,
+                      }))
+                    : [{ value: "", label: "loading..." }]
+                }
+                value={location ?? ""}
+                onValueChange={(value) => {
+                  setLocation(value as Id<"locations"> | null);
+                }}
+                placeholder="Select a location..."
+                emptyMessage="No location found."
+                onCreateNew={async (newLocName) => {
+                  if (newLocName.trim() === "") return;
+                  const locId = await createLocation({ name: newLocName });
+                  setLocation(locId);
+                }}
+              />
+            </div>
+
+            {items.map((item) => (
+              <SingleItemForm
+                handleRemoveItem={handleRemoveItem}
+                handleItemDataChange={handleItemDataChange}
+                key={item.file.name}
+                item={item}
+              />
             ))}
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={addItems} disabled={items.length <= 0}>
+              {loading ? (
+                <LoaderCircleIcon className="animate-spin" />
+              ) : (
+                `Add ${items.length} Item${items.length > 1 ? "s" : ""}`
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -176,8 +330,16 @@ export default function NewItemForm() {
   );
 }
 
-function SingleItemForm({ file }: { file: File }) {
-  const imageURL = URL.createObjectURL(file);
+function SingleItemForm({
+  item,
+  handleItemDataChange,
+  handleRemoveItem,
+}: {
+  item: ClothingInfoFormItem;
+  handleRemoveItem: (item: ClothingInfoFormItem) => void;
+  handleItemDataChange: (item: ClothingInfoFormItem) => void;
+}) {
+  const imageURL = URL.createObjectURL(item.file);
   const [amount, setAmount] = useState(1);
   const [showImagePreview, setShowImagePreview] = useState(false);
   const [selectedColors, setSelectedColors] = useState<Color[]>([]);
@@ -205,7 +367,7 @@ function SingleItemForm({ file }: { file: File }) {
     filList: string[],
     isBrand = true,
   ) => {
-    if (e.key === "." && input) {
+    if (e.key === "ß" && input) {
       e.preventDefault();
       if (filList.length > 0) {
         if (isBrand) {
@@ -229,6 +391,17 @@ function SingleItemForm({ file }: { file: File }) {
     }
   };
 
+  useEffect(() => {
+    const newItem = {
+      file: item.file,
+      brand: brandInput,
+      colors: selectedColors,
+      types: types,
+      amount: amount,
+    };
+    handleItemDataChange(newItem);
+  }, [brandInput, selectedColors, types, amount]);
+
   return (
     <Card className="p-0">
       <Accordion type="single" collapsible>
@@ -238,23 +411,23 @@ function SingleItemForm({ file }: { file: File }) {
               <div className="relative">
                 <img
                   src={imageURL}
-                  alt={file.name}
+                  alt={item.file.name}
                   className="h-8 w-8 rounded-md"
                 />
               </div>
-              <div className="">{file.name}</div>
+              <div className="">{item.file.name}</div>
             </div>
           </AccordionTrigger>
           <AccordionContent>
             <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
               <DialogContent className="sm:max-w-[800px] w-fit">
                 <DialogHeader>
-                  <DialogTitle>{file.name}</DialogTitle>
+                  <DialogTitle>{item.file.name}</DialogTitle>
                 </DialogHeader>
                 <div className="relative rounded-lg overflow-hidden">
                   <img
                     src={imageURL}
-                    alt={file.name}
+                    alt={item.file.name}
                     className="object-contain max-h-[50vh]"
                   />
                 </div>
@@ -265,7 +438,7 @@ function SingleItemForm({ file }: { file: File }) {
                 <div className="flex gap-2 items-center justify-end">
                   <div className="flex gap-1 opacity-50">
                     <LightbulbIcon className="h-4 w-4" />
-                    <div>Press . to autofill</div>
+                    <div>Press ß to autofill</div>
                   </div>
                   <Button
                     size="sm"
@@ -278,7 +451,7 @@ function SingleItemForm({ file }: { file: File }) {
                   </Button>
                   <Button
                     variant="destructive"
-                    onClick={() => {}}
+                    onClick={() => handleRemoveItem(item)}
                     size="sm"
                     className="text-xs font-normal w-fit"
                   >
@@ -411,7 +584,9 @@ function SingleItemForm({ file }: { file: File }) {
                       type="number"
                       id="amount"
                       value={amount}
-                      onChange={(e) => setAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                      onChange={(e) =>
+                        setAmount(Math.max(1, parseInt(e.target.value) || 1))
+                      }
                       className="w-20 text-center"
                       min="1"
                     />
@@ -475,7 +650,6 @@ function SingleItemForm({ file }: { file: File }) {
                     Show {showAllColors ? "less" : "more"}
                   </Button>
                 </div>
-                
               </div>
             </div>
           </AccordionContent>
@@ -596,5 +770,117 @@ function FileDropzone({
         )}
       </div>
     </div>
+  );
+}
+
+interface Option {
+  value: string;
+  label: string;
+}
+
+interface SearchableCreateSelectProps {
+  options: Option[];
+  placeholder?: string;
+  emptyMessage?: string;
+  onCreateNew?: (newValue: string) => void;
+  onValueChange?: (value: string) => void;
+  value?: string;
+}
+
+export function SearchableCreateSelect({
+  options,
+  placeholder = "Select an item...",
+  emptyMessage = "No item found.",
+  onCreateNew,
+  onValueChange,
+  value,
+}: SearchableCreateSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+
+  const filteredOptions = useMemo(() => {
+    if (!searchValue) {
+      return options;
+    }
+    return options.filter((option) =>
+      option.label.toLowerCase().includes(searchValue.toLowerCase()),
+    );
+  }, [options, searchValue]);
+
+  const handleSelect = (currentValue: string) => {
+    // If the selected value is the special "create-new" value
+    if (currentValue === `create-new-${searchValue.toLowerCase()}`) {
+      onCreateNew?.(searchValue);
+      onValueChange?.(searchValue); // Optionally set the new value as selected
+    } else {
+      onValueChange?.(currentValue === value ? "" : currentValue);
+    }
+    setOpen(false);
+    setSearchValue(""); // Clear search when an item is selected or created
+  };
+
+  const showCreateNew =
+    searchValue &&
+    !options.some(
+      (option) => option.label.toLowerCase() === searchValue.toLowerCase(),
+    );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-[200px] justify-between"
+        >
+          {value
+            ? options.find((option) => option.value === value)?.label || value // Fallback to value if label not found (e.g., newly created)
+            : placeholder}
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[200px] p-0">
+        <Command>
+          <CommandInput
+            placeholder={placeholder}
+            value={searchValue}
+            onValueChange={setSearchValue}
+          />
+          <CommandList>
+            <CommandEmpty>{emptyMessage}</CommandEmpty>
+            <ScrollArea className="max-h-[200px]">
+              <CommandGroup>
+                {filteredOptions.map((option) => (
+                  <CommandItem
+                    key={option.value}
+                    value={option.value}
+                    onSelect={handleSelect}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        value === option.value ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    {option.label}
+                  </CommandItem>
+                ))}
+                {showCreateNew && (
+                  <CommandItem
+                    key={`create-new-${searchValue.toLowerCase()}`}
+                    value={`create-new-${searchValue.toLowerCase()}`} // Unique value for create
+                    onSelect={handleSelect}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Create new &quot;{searchValue}&quot;
+                  </CommandItem>
+                )}
+              </CommandGroup>
+            </ScrollArea>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
