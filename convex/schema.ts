@@ -1,5 +1,5 @@
 import { defineSchema, defineTable } from "convex/server";
-import { v } from "convex/values";
+import { Infer, v } from "convex/values";
 
 export const colorEnum = v.union(
   v.literal("red"),
@@ -15,6 +15,8 @@ export const colorEnum = v.union(
   v.literal("black"),
   v.literal("white"),
 );
+
+export type Color = Infer<typeof colorEnum>;
 
 export default defineSchema({
 

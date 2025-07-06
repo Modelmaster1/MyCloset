@@ -18,7 +18,7 @@ export default function ClothingItemForm() {
   const [quantity, setQuantity] = useState(1);
   const [newLocationName, setNewLocationName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [aiTest, setAiTest] = useState<string | null>(null);
+  const [aiTest, _] = useState<string | null>(null);
 
   const locations = useQuery(api.locations.list);
   const createLocation = useMutation(api.locations.create);
