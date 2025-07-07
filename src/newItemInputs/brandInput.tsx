@@ -1,0 +1,95 @@
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dispatch, SetStateAction, useState } from "react";
+
+const existingBrands = [
+  "Nike",
+  "Adidas",
+  "Puma",
+  "Reebok",
+  "Converse",
+  "New Balance",
+  "Asics",
+  "Vans",
+  "Fila",
+  "Champion",
+  "Reef",
+  "Superdry",
+  "Under Armour",
+  "Mizuno",
+  "Uniqlo",
+  "Hugo Boss",
+  "Lululemon",
+  "Athleta",
+  "Lacoste",
+];
+
+export default function BrandInput({
+  brandInput,
+  setBrandInput,
+}: {
+  brandInput: string;
+  setBrandInput: Dispatch<SetStateAction<string>>;
+}) {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const filteredBrands = existingBrands.filter((brand) =>
+    brand.toLowerCase().includes(brandInput.toLowerCase()),
+  );
+
+  function handleBrandKeyDown(
+    e: React.KeyboardEvent<HTMLInputElement>,
+    input: string,
+    filList: string[],
+  ) {
+    if (e.key === "ß" && input) {
+      e.preventDefault();
+      if (filList.length > 0) {
+        setBrandInput(filList[0]);
+      }
+      setShowSuggestions(false);
+    }
+  }
+
+  return (
+    <div className="grid w-full items-center gap-3 mb-3">
+      <Label htmlFor="brand">Brand</Label>
+      <div className="relative">
+        <Input
+          type="text"
+          id="brand"
+          placeholder="e.g., Nike"
+          value={brandInput}
+          onChange={(e) => {
+            setBrandInput(e.target.value);
+            setShowSuggestions(true);
+          }}
+          onKeyDown={(e) =>
+            handleBrandKeyDown(e, brandInput, filteredBrands)
+          }
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => {
+            // Delay hiding suggestions to allow clicking them
+            setTimeout(() => setShowSuggestions(false), 200);
+          }}
+        />
+        {showSuggestions && filteredBrands.length > 0 && (
+          <div className="absolute w-full bg-white dark:bg-neutral-800 border rounded-md mt-2 max-h-48 overflow-y-auto z-10">
+            {filteredBrands.map((brand, index) => (
+              <div
+                key={index}
+                className="px-3 py-1 hover:bg-gray-100 dark:hover:bg-neutral-600 cursor-pointer"
+                onMouseDown={() => {
+                  setBrandInput(brand);
+                  setShowSuggestions(false);
+                }}
+              >
+                {brand}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

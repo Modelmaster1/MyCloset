@@ -93,3 +93,32 @@ export const list = query({
     return result;
   },
 });
+
+export const move = mutation({
+  args: {
+    pieces: v.array(v.object({
+        _id: v.id("clothingPieces"),
+        locationHistory: v.array(v.id("locationLogs")),
+    })),
+    newLocation: v.id("locations"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const newLocationLog = await ctx.db.insert("locationLogs", {
+      name: args.newLocation,
+    });
+
+    for (const piece of args.pieces) {
+      await ctx.db.patch(piece._id, {
+        currentLocation: args.newLocation,
+        locationHistory: [...piece.locationHistory, newLocationLog],
+      });
+    }
+  },
+});
