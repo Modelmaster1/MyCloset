@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { Dialog, DialogContent } from "./components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "./components/ui/dialog";
 import { ClothingPiece, type ClothingInfoItem } from "./view";
 import { Color } from "convex/schema";
 import BrandInput from "./newItemInputs/brandInput";
@@ -49,11 +49,15 @@ export default function DetailView({
     newFile !== null;
 
   useEffect(() => {
+    revertAnyChanges();
+  }, [item]);
+
+  function revertAnyChanges() {
     setBrandInput(item.brand);
     setTypes(item.types);
     setSelectedColors(item.colors);
     setNewFile(null);
-  }, [item]);
+  }
 
   async function handleUpdateInfo() {
     setLoading(true);
@@ -62,6 +66,34 @@ export default function DetailView({
       // No changes to save
       setLoading(false);
       return;
+    }
+
+    const updateArgs: {
+      currentId: Id<"clothingInfoItems">;
+      pic?: Id<"_storage">;
+      brand?: string;
+      types?: string[];
+      colors?: Color[];
+    } = {
+      currentId: item._id,
+    };
+
+    if (brandInput !== item.brand) {
+      updateArgs.brand = brandInput;
+    }
+
+    if (
+      new Set(types).size !== new Set(item.types).size ||
+      !types.every((t) => item.types.includes(t))
+    ) {
+      updateArgs.types = types;
+    }
+
+    if (
+      new Set(selectedColors).size !== new Set(item.colors).size ||
+      !selectedColors.every((c) => item.colors.includes(c))
+    ) {
+      updateArgs.colors = selectedColors;
     }
 
     if (newFile) {
@@ -73,21 +105,13 @@ export default function DetailView({
       });
 
       const { storageId } = await result.json();
+      updateArgs.pic = storageId as Id<"_storage">;
+    }
 
-      updateInfo({
-        id: item._id,
-        pic: storageId as Id<"_storage">,
-        brand: brandInput,
-        types: types,
-        colors: selectedColors,
-      });
-    } else {
-      updateInfo({
-        id: item._id,
-        brand: brandInput,
-        types: types,
-        colors: selectedColors,
-      });
+    // Only call the mutation if there are actual changes to send
+    if (Object.keys(updateArgs).length > 1) {
+      // 'id' is always present, so if length > 1, there are other fields
+      await updateInfo(updateArgs);
     }
 
     setLoading(false);
@@ -97,6 +121,7 @@ export default function DetailView({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="w-md p-0">
+        <DialogTitle className="hidden">{item.brand} clothing item</DialogTitle>
         <div className="max-h-[90vh] overflow-y-auto">
           <div className={"relative" + (hasChanges ? " mb-20" : "")}>
             <div className="flex flex-col gap-2">
@@ -185,8 +210,16 @@ export default function DetailView({
         </div>
         {hasChanges && (
           <div className="absolute bottom-0 w-full">
-            <div className="flex justify-end bg-black w-full p-4">
-              <Button className="rounded-none cursor-pointer" onClick={handleUpdateInfo}>
+            <div className="flex justify-end gap-3 items-center bg-black w-full p-4">
+
+              <button onClick={revertAnyChanges} className="opacity-80 cursor-pointer">
+                Revert Changes
+              </button>
+
+              <Button
+                className="rounded-none cursor-pointer"
+                onClick={handleUpdateInfo}
+              >
                 {loading ? (
                   <LoaderCircleIcon className="animate-spin" />
                 ) : (

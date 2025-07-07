@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { colorEnum } from "./schema";
+import { Color, colorEnum } from "./schema";
+import { Id } from "./_generated/dataModel";
 
 export const create = mutation({
   args: {
@@ -127,7 +128,7 @@ export const move = mutation({
 
 export const editInfo = mutation({
   args: {
-    id: v.id("clothingInfoItems"),
+    currentId: v.id("clothingInfoItems"),
     pic: v.optional(v.id("_storage")),
     brand: v.optional(v.string()),
     types: v.optional(v.array(v.string())),
@@ -136,15 +137,31 @@ export const editInfo = mutation({
 
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
+
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
-    await ctx.db.patch(args.id, {
-      pic: args.pic,
-      brand: args.brand,
-      types: args.types,
-      colors: args.colors,
-    });
+    const patchObject: {
+      pic?: Id<"_storage">
+      brand?: string;
+      types?: string[];
+      colors?: Color[];
+    } = {};
+
+    if (args.pic !== undefined) {
+      patchObject.pic = args.pic;
+    }
+    if (args.brand !== undefined) {
+      patchObject.brand = args.brand;
+    }
+    if (args.types !== undefined) {
+      patchObject.types = args.types;
+    }
+    if (args.colors !== undefined) {
+      patchObject.colors = args.colors;
+    }
+
+    await ctx.db.patch(args.currentId, patchObject);
   },
 });
