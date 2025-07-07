@@ -82,6 +82,7 @@ export default function BrandInput({
           />
         ) : (
           <Input
+            className="rounded-none"
             {...props}
           />
         )}

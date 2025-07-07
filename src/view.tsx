@@ -205,6 +205,7 @@ export default function View() {
             <Button
               variant="default"
               onClick={handleMovePieces}
+              className="rounded-none"
               disabled={loading}
             >
               {loading ? (
@@ -317,7 +318,7 @@ function ItemView({
                       Move <ArrowRightIcon />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent>
+                  <PopoverContent className="rounded-none">
                     {uniqueLocData.map((data, index) => (
                       <div
                         key={data.name + index}

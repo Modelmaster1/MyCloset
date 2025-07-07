@@ -128,13 +128,14 @@ export default function TypesInput({
             </>
           ) : (
             <>
-              <Input {...props} />
+              <Input {...props} className="rounded-none" />
               <Button
                 onClick={() => {
                   if (newTypeInput.trim() === "") return;
                   setTypes([...types, newTypeInput.toLocaleLowerCase()]);
                   setNewTypeInput("");
                 }}
+                className="rounded-none"
               >
                 <PlusIcon />
               </Button>

@@ -18,6 +18,7 @@ export default function AmountInput({
           type="button"
           variant="outline"
           size="icon"
+          className="rounded-none"
           onClick={() => setAmount(Math.max(1, amount - 1))}
         >
           -
@@ -29,12 +30,13 @@ export default function AmountInput({
           onChange={(e) =>
             setAmount(Math.max(1, parseInt(e.target.value) || 1))
           }
-          className="w-20 text-center"
+          className="w-20 text-center rounded-none"
           min="1"
         />
         <Button
           type="button"
           variant="outline"
+          className="rounded-none"
           size="icon"
           onClick={() => setAmount(amount + 1)}
         >

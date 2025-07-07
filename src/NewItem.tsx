@@ -151,7 +151,7 @@ export default function NewItemForm() {
         <DialogTrigger asChild>
           <Button variant="link">New Item</Button>
         </DialogTrigger>
-        <DialogContent>
+        <DialogContent className="rounded-none">
           <DialogHeader>
             <DialogTitle>Add new Items</DialogTitle>
             <DialogDescription>
@@ -203,7 +203,7 @@ export default function NewItemForm() {
             ))}
           </div>
           <div className="flex justify-end">
-            <Button onClick={addItems} disabled={items.length <= 0}>
+            <Button className="rounded-none" onClick={addItems} disabled={items.length <= 0}>
               {loading ? (
                 <LoaderCircleIcon className="animate-spin" />
               ) : (
@@ -246,16 +246,16 @@ function SingleItemForm({
   }, [brandInput, selectedColors, types, amount]);
 
   return (
-    <Card className="p-0">
+    <Card className="p-0 rounded-none">
       <Accordion type="single" collapsible>
         <AccordionItem value="item-1">
-          <AccordionTrigger className="flex items-center bg-black/40 p-2 hover:no-underline cursor-pointer">
+          <AccordionTrigger className="flex items-center rounded-none bg-black/40 p-2 hover:no-underline cursor-pointer">
             <div className="flex items-center gap-2">
               <div className="relative">
                 <img
                   src={imageURL}
                   alt={item.file.name}
-                  className="h-8 w-8 rounded-md"
+                  className="h-8 w-8 rounded-none"
                 />
               </div>
               <div className="">{item.file.name}</div>
@@ -263,11 +263,11 @@ function SingleItemForm({
           </AccordionTrigger>
           <AccordionContent>
             <Dialog open={showImagePreview} onOpenChange={setShowImagePreview}>
-              <DialogContent className="sm:max-w-[800px] w-fit">
-                <DialogHeader>
+              <DialogContent className="sm:max-w-[800px] p-0 w-fit rounded-none">
+                <DialogHeader className="p-2 pt-3">
                   <DialogTitle>{item.file.name}</DialogTitle>
                 </DialogHeader>
-                <div className="relative rounded-lg overflow-hidden">
+                <div className="relative rounded-none overflow-hidden">
                   <img
                     src={imageURL}
                     alt={item.file.name}
@@ -285,7 +285,7 @@ function SingleItemForm({
                   </div>
                   <Button
                     size="sm"
-                    className="text-xs font-normal w-fit"
+                    className="text-xs font-normal w-fit rounded-none"
                     variant="secondary"
                     onClick={() => setShowImagePreview(true)}
                   >
@@ -296,7 +296,7 @@ function SingleItemForm({
                     variant="destructive"
                     onClick={() => handleRemoveItem(item)}
                     size="sm"
-                    className="text-xs font-normal w-fit"
+                    className="text-xs font-normal w-fit rounded-none"
                   >
                     Remove
                   </Button>
@@ -392,7 +392,7 @@ function FileDropzone({
 
   return (
     <div
-      className={`relative flex min-h-[160px] items-center justify-center rounded-md outline-dashed outline-2 transition-colors ${
+      className={`relative flex min-h-[160px] items-center justify-center rounded-none outline-dashed outline-2 transition-colors ${
         isDragOver ? "opacity-80" : ""
       }`}
       onDragOver={handleDragOver}
@@ -494,7 +494,7 @@ export function SearchableCreateSelect({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-[200px] justify-between"
+          className="w-[200px] justify-between rounded-none"
         >
           {value
             ? options.find((option) => option.value === value)?.label || value // Fallback to value if label not found (e.g., newly created)
@@ -502,7 +502,7 @@ export function SearchableCreateSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0">
+      <PopoverContent className="w-[200px] p-0 rounded-none">
         <Command>
           <CommandInput
             placeholder={placeholder}
