@@ -118,3 +118,17 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* src/index.css or wherever your main CSS is */
+
+/* For Webkit browsers (Chrome, Safari, Edge, Opera) */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* For IE, Edge and Firefox */
+.hide-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none;    /* Firefox */
+}

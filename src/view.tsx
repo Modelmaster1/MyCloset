@@ -373,9 +373,9 @@ function ItemView({
       <div className="bg-black bg-opacity-50 text-white p-2">
         <p className="text-sm">{item.brand}</p>
         <p className="text-xs">{item.types.join(", ")}</p>
-        <div className="mt-2">
+        <div className="mt-2 flex overflow-x-auto hide-scrollbar whitespace-nowrap">
           {locationStrings.map((locationString, index) => (
-            <p key={index} className="text-xs">
+            <p key={index} className="text-xs mr-2">
               {locationString}
             </p>
           ))}
