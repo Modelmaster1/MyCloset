@@ -6,15 +6,17 @@ import { Dispatch, SetStateAction, useState } from "react";
 export default function ColorInput({
   selectedColors,
   setSelectedColors,
+  simpleInput = false,
 }: {
   selectedColors: Color[];
   setSelectedColors: Dispatch<SetStateAction<Color[]>>;
+  simpleInput?: boolean;
 }) {
   const [showAllColors, setShowAllColors] = useState(false);
 
   return (
     <div className="grid w-full items-center gap-3 mt-4 mb-3">
-      <Label>Color</Label>
+      {!simpleInput && <Label>Color</Label>}
       <div className="flex flex-wrap gap-2">
         {availableColors.map(
           (colorOption) =>
@@ -36,7 +38,9 @@ export default function ColorInput({
                   }}
                   type="button"
                 />
-                <div className="text-xs text-neutral-400 mt-2">
+                <div
+                  className={`text-xs mt-2 ${simpleInput ? "uppercase scale-90 opacity-50" : "text-neutral-400"}`}
+                >
                   {colorOption.color.charAt(0).toUpperCase() +
                     colorOption.color.slice(1)}
                 </div>
@@ -47,14 +51,20 @@ export default function ColorInput({
             ),
         )}
       </div>
-      <Button
-        onClick={() => setShowAllColors(!showAllColors)}
-        size="sm"
-        className="w-fit text-xs p-0 hover:p-2"
-        variant="ghost"
-      >
-        Show {showAllColors ? "less" : "more"}
-      </Button>
+      {simpleInput ? (
+        <button onClick={() => setShowAllColors(!showAllColors)} className="text-xs w-fit opacity-50">
+          Show {showAllColors ? "less" : "more"}
+        </button>
+      ) : (
+        <Button
+          onClick={() => setShowAllColors(!showAllColors)}
+          size="sm"
+          className="w-fit text-xs p-0 hover:p-2"
+          variant="ghost"
+        >
+          Show {showAllColors ? "less" : "more"}
+        </Button>
+      )}
     </div>
   );
 }

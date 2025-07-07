@@ -27,15 +27,17 @@ export const existingTypes = [
   "trousers",
   "socks",
   "hat",
-  "underwear",
+  "underpants",
 ];
 
 export default function TypesInput({
   types,
   setTypes,
+  simpleInput = false,
 }: {
   types: string[];
   setTypes: React.Dispatch<React.SetStateAction<string[]>>;
+  simpleInput?: boolean;
 }) {
   const [showTypesSuggestions, setShowTypesSuggestions] = useState(false);
   const [newTypeInput, setNewTypeInput] = useState("");
@@ -67,9 +69,27 @@ export default function TypesInput({
     }
   }
 
+  const props = {
+    type: "text",
+    id: "type",
+    placeholder: "new type",
+    value: newTypeInput,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      setNewTypeInput(e.target.value);
+      setShowTypesSuggestions(true);
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) =>
+      handleBrandKeyDown(e, newTypeInput, filteredTypes),
+    onFocus: () => setShowTypesSuggestions(true),
+    onBlur: () => {
+      // Delay hiding suggestions to allow clicking them
+      setTimeout(() => setShowTypesSuggestions(false), 200);
+    },
+  };
+
   return (
-    <div className="grid w-full items-center gap-3">
-      <Label htmlFor="type">Types</Label>
+    <div className={`grid w-full items-center ${simpleInput ? "gap-1" : "gap-3"}`}>
+      {simpleInput !== true && <Label htmlFor="type">Types</Label>}
       {types.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
           {types.map((type, index) => (
@@ -78,7 +98,7 @@ export default function TypesInput({
                 setTypes(types.filter((t) => t !== type));
               }}
               key={index}
-              className="flex gap-1 cursor-pointer items-center bg-neutral-800 p-1 px-2 rounded-sm text-sm"
+              className={`flex cursor-pointer items-center ${simpleInput ? "" : "bg-neutral-800 p-1 px-2 gap-1" } rounded-sm text-sm`}
             >
               {type}
               <XIcon className="h-3 w-3" />
@@ -88,32 +108,38 @@ export default function TypesInput({
       )}
       <div className="relative">
         <div className="flex items-center gap-2">
-          <Input
-            type="text"
-            id="type"
-            placeholder="e.g., polo, shirt"
-            value={newTypeInput}
-            onChange={(e) => {
-              setNewTypeInput(e.target.value);
-              setShowTypesSuggestions(true);
-            }}
-            onKeyDown={(e) =>
-              handleBrandKeyDown(e, newTypeInput, filteredTypes)
-            }
-            onFocus={() => setShowTypesSuggestions(true)}
-            onBlur={() => {
-              // Delay hiding suggestions to allow clicking them
-              setTimeout(() => setShowTypesSuggestions(false), 200);
-            }}
-          />
-          <Button
-            onClick={() => {
-              setTypes([...types, newTypeInput]);
-              setNewTypeInput("");
-            }}
-          >
-            <PlusIcon />
-          </Button>
+          {simpleInput == true ? (
+            <>
+              <input
+                className="text-base font-light uppercase focus:outline-none w-full"
+                {...props}
+              />
+              <button
+                onClick={() => {
+                  if (newTypeInput.trim() === "") return;
+                  setTypes([...types, newTypeInput.toLowerCase()]);
+                  setNewTypeInput("");
+                }}
+                className={"cursor-pointer" + (newTypeInput.trim() === "" ? " opacity-50" : "")}
+                disabled={newTypeInput.trim() === ""}
+              >
+                <PlusIcon />
+              </button>
+            </>
+          ) : (
+            <>
+              <Input {...props} />
+              <Button
+                onClick={() => {
+                  if (newTypeInput.trim() === "") return;
+                  setTypes([...types, newTypeInput.toLocaleLowerCase()]);
+                  setNewTypeInput("");
+                }}
+              >
+                <PlusIcon />
+              </Button>
+            </>
+          )}
         </div>
         {showTypesSuggestions && filteredTypes.length > 0 && (
           <div className="absolute w-full bg-white dark:bg-neutral-800 border rounded-md mt-2 max-h-48 overflow-y-auto z-10">

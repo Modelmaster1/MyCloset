@@ -27,15 +27,35 @@ const existingBrands = [
 export default function BrandInput({
   brandInput,
   setBrandInput,
+  simpleInput = false,
 }: {
   brandInput: string;
   setBrandInput: Dispatch<SetStateAction<string>>;
+  simpleInput?: boolean;
 }) {
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   const filteredBrands = existingBrands.filter((brand) =>
     brand.toLowerCase().includes(brandInput.toLowerCase()),
   );
+
+  const props = {
+    type: "text",
+    id: "brand",
+    placeholder: "brand name",
+    value: brandInput,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+      setBrandInput(e.target.value);
+      setShowSuggestions(true);
+    },
+    onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => 
+      handleBrandKeyDown(e, brandInput, filteredBrands),
+    onFocus: () => setShowSuggestions(true),
+    onBlur: () => {
+      // Delay hiding suggestions to allow clicking them
+      setTimeout(() => setShowSuggestions(false), 200);
+    }
+  }
 
   function handleBrandKeyDown(
     e: React.KeyboardEvent<HTMLInputElement>,
@@ -53,26 +73,18 @@ export default function BrandInput({
 
   return (
     <div className="grid w-full items-center gap-3 mb-3">
-      <Label htmlFor="brand">Brand</Label>
+      {simpleInput !== true && <Label htmlFor="brand">Brand</Label>}
       <div className="relative">
-        <Input
-          type="text"
-          id="brand"
-          placeholder="e.g., Nike"
-          value={brandInput}
-          onChange={(e) => {
-            setBrandInput(e.target.value);
-            setShowSuggestions(true);
-          }}
-          onKeyDown={(e) =>
-            handleBrandKeyDown(e, brandInput, filteredBrands)
-          }
-          onFocus={() => setShowSuggestions(true)}
-          onBlur={() => {
-            // Delay hiding suggestions to allow clicking them
-            setTimeout(() => setShowSuggestions(false), 200);
-          }}
-        />
+        {simpleInput == true ? (
+          <input
+            className="text-3xl font-light uppercase focus:outline-none"
+            {...props}
+          />
+        ) : (
+          <Input
+            {...props}
+          />
+        )}
         {showSuggestions && filteredBrands.length > 0 && (
           <div className="absolute w-full bg-white dark:bg-neutral-800 border rounded-md mt-2 max-h-48 overflow-y-auto z-10">
             {filteredBrands.map((brand, index) => (

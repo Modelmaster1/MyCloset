@@ -19,13 +19,14 @@ import {
 } from "./components/ui/popover";
 import { Label } from "./components/ui/label";
 import { Input } from "./components/ui/input";
+import { Color } from "convex/schema";
 
 export interface ClothingInfoItem {
   _id: string;
   _creationTime: number;
   brand: string;
   types: string[];
-  colors: string[];
+  colors: Color[];
   pieces: ClothingPiece[];
   imageURL: string | null;
 }
