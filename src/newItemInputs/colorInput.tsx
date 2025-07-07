@@ -15,7 +15,7 @@ export default function ColorInput({
   const [showAllColors, setShowAllColors] = useState(false);
 
   return (
-    <div className="grid w-full items-center gap-3 mt-4 mb-3">
+    <div className={`grid w-full items-center gap-3 mt-4 ${simpleInput ? "" : "mb-3"}`}>
       {!simpleInput && <Label>Color</Label>}
       <div className="flex flex-wrap gap-2">
         {availableColors.map(
