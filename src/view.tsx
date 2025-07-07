@@ -22,7 +22,7 @@ import { Input } from "./components/ui/input";
 import { Color } from "convex/schema";
 
 export interface ClothingInfoItem {
-  _id: string;
+  _id: Id<"clothingInfoItems">;
   _creationTime: number;
   brand: string;
   types: string[];

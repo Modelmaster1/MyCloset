@@ -96,10 +96,12 @@ export const list = query({
 
 export const move = mutation({
   args: {
-    pieces: v.array(v.object({
+    pieces: v.array(
+      v.object({
         _id: v.id("clothingPieces"),
         locationHistory: v.array(v.id("locationLogs")),
-    })),
+      }),
+    ),
     newLocation: v.id("locations"),
   },
 
@@ -120,5 +122,29 @@ export const move = mutation({
         locationHistory: [...piece.locationHistory, newLocationLog],
       });
     }
+  },
+});
+
+export const editInfo = mutation({
+  args: {
+    id: v.id("clothingInfoItems"),
+    pic: v.optional(v.id("_storage")),
+    brand: v.optional(v.string()),
+    types: v.optional(v.array(v.string())),
+    colors: v.optional(v.array(colorEnum)),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    await ctx.db.patch(args.id, {
+      pic: args.pic,
+      brand: args.brand,
+      types: args.types,
+      colors: args.colors,
+    });
   },
 });

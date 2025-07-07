@@ -45,7 +45,7 @@ export default function BrandInput({
     placeholder: "brand name",
     value: brandInput,
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
-      setBrandInput(e.target.value);
+      setBrandInput(e.target.value.toLowerCase());
       setShowSuggestions(true);
     },
     onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => 
