@@ -318,7 +318,7 @@ function ItemView({
                       Move <ArrowRightIcon />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="rounded-none">
+                  <PopoverContent className="rounded-none pt-2">
                     {uniqueLocData.map((data, index) => (
                       <div
                         key={data.name + index}
@@ -332,6 +332,7 @@ function ItemView({
                             type="button"
                             variant="outline"
                             size="icon"
+                            className="rounded-none"
                             onClick={() => removeFromMoveItems(data.name)}
                           >
                             -
@@ -346,7 +347,7 @@ function ItemView({
                                   obj.info === item._id,
                               ).length
                             }
-                            className="w-20 text-center"
+                            className="w-20 text-center rounded-none"
                             min="0"
                             max={data.count}
                             readOnly
@@ -355,6 +356,7 @@ function ItemView({
                             type="button"
                             variant="outline"
                             size="icon"
+                            className="rounded-none"
                             disabled={!checkIfCanMove(data.name, data.count)}
                             onClick={() => addToMoveItems(data.name)}
                           >
