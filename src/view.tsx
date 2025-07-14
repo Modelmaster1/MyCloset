@@ -1156,7 +1156,7 @@ function PackingListInfo({
             <div className="flex flex-col gap-3">
               <Label htmlFor="packing">Packing Location</Label>
               <SearchableCreateSelect
-                disabled={true}
+                disabled={((packingListStatus?.packedPieces.length ?? 5) > 0)}
                 options={
                   locations
                     ? locations.map((location) => ({
