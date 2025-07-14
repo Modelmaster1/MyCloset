@@ -32,16 +32,28 @@ export default defineSchema({
     info: v.id("clothingInfoItems"),
     currentLocation: v.id("locations"),
     locationHistory: v.array(v.id("locationLogs")),
+    packed: v.optional(v.id("packingLists")),
     lost: v.optional(v.number()),
   }),
 
   locationLogs: defineTable({
     name: v.id("locations"),
+    packingList: v.optional(v.id("packingLists")),
   }),
 
 
   locations: defineTable({
     name: v.string(),
+    user: v.string(),
+  }),
+
+  packingLists: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    departureDate: v.optional(v.number()),
+    packingLocation: v.optional(v.id("locations")),
+    items: v.array(v.id("clothingPieces")),
+    expired: v.optional(v.boolean()),
     user: v.string(),
   }),
 });

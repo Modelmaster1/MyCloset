@@ -100,6 +100,7 @@ export const move = mutation({
     pieces: v.array(
       v.object({
         _id: v.id("clothingPieces"),
+        currentLocationId: v.id("locations"),
         locationHistory: v.array(v.id("locationLogs")),
       }),
     ),
@@ -113,11 +114,19 @@ export const move = mutation({
       throw new Error("Not authenticated");
     }
 
+    const piecesNotAlreadyInLocation = args.pieces.filter(
+      (piece) => piece.currentLocationId !== args.newLocation,
+    );
+
+    if (piecesNotAlreadyInLocation.length === 0) {
+      return;
+    }
+
     const newLocationLog = await ctx.db.insert("locationLogs", {
       name: args.newLocation,
     });
 
-    for (const piece of args.pieces) {
+    for (const piece of piecesNotAlreadyInLocation) {
       await ctx.db.patch(piece._id, {
         currentLocation: args.newLocation,
         locationHistory: [...piece.locationHistory, newLocationLog],
@@ -143,7 +152,7 @@ export const editInfo = mutation({
     }
 
     const patchObject: {
-      pic?: Id<"_storage">
+      pic?: Id<"_storage">;
       brand?: string;
       types?: string[];
       colors?: Color[];
@@ -163,5 +172,74 @@ export const editInfo = mutation({
     }
 
     await ctx.db.patch(args.currentId, patchObject);
+  },
+});
+
+export const packPieces = mutation({
+  args: {
+    pieces: v.array(v.id("clothingPieces")),
+    packingList: v.id("packingLists"),
+    packLocation: v.id("locations"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    if (args.pieces.length === 0) {
+      throw new Error("No pieces to pack");
+    }
+
+    const locationLog = await ctx.db.insert("locationLogs", {
+      name: args.packLocation,
+      packingList: args.packingList,
+    });
+
+    for (const pieceID of args.pieces) {
+      const piece = await ctx.db.get(pieceID);
+
+      if (!piece) {
+        throw new Error("Piece not found");
+      }
+
+      await ctx.db.patch(pieceID, {
+        currentLocation: args.packLocation,
+        packed: args.packingList,
+        locationHistory: [...piece.locationHistory, locationLog],
+      });
+    }
+  },
+});
+
+export const getPackStatus = query({
+  args: {
+    packingList: v.id("packingLists"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const packingListInfo = await ctx.db.get(args.packingList);
+
+    if (!packingListInfo) return null;
+
+    const packedPiecesInPackingList = await ctx.db
+      .query("clothingPieces")
+      .filter((q) => q.eq(q.field("packed"), args.packingList))
+      .collect();
+
+    const percentagePacked =
+      packedPiecesInPackingList.length / packingListInfo?.items.length;
+    return {
+      packedPieces: packedPiecesInPackingList,
+      totalPieces: packingListInfo?.items,
+      percentagePacked: Math.round(percentagePacked * 100),
+    };
   },
 });
