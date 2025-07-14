@@ -47,6 +47,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./components/ui/alert-dialog";
+import { Switch } from "./components/ui/switch";
 
 export interface ClothingInfoItem {
   _id: Id<"clothingInfoItems">;
@@ -109,6 +110,7 @@ export default function View() {
   const [filterLocation, setFilterLocation] = useState<Id<"locations"> | null>(
     null,
   );
+  const [hidePacked, setHidePacked] = useState(false);
   const [nextAction, setNextAction] = useState<"move" | "addToPackingList">(
     "move",
   );
@@ -179,6 +181,13 @@ export default function View() {
       );
 
       if (piecesInPackingList.length === 0) return false;
+
+      if (hidePacked) {
+        const allPiecesArePacked = piecesInPackingList.every((piece) =>
+          piece.packed == selectedPackingList._id,
+        );
+        if (allPiecesArePacked) return false;
+      }
     }
 
     // If there's no search term, return all items
@@ -267,34 +276,43 @@ export default function View() {
           />
         )}
 
-        <div className="flex gap-2 items-start">
-          <button
-            className={`cursor-pointer w-fit ${filterLocation === null && "border-b-2 border-neutral-400"}`}
-            onClick={() => setFilterLocation(null)}
-          >
-            All Items({filteredItems.length})
-          </button>
-          {(locations ?? []).map((location) => {
-            const count = filteredItems
-              .map((item) => ({
-                ...item,
-                pieces: item.pieces.filter(
-                  (piece) => piece.currentLocation._id === location._id,
-                ),
-              }))
-              .filter((info) => info.pieces.length > 0).length;
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex gap-2 items-start">
+            <button
+              className={`cursor-pointer w-fit ${filterLocation === null && "border-b-2 border-neutral-400"}`}
+              onClick={() => setFilterLocation(null)}
+            >
+              All Items({filteredItems.length})
+            </button>
+            {(locations ?? []).map((location) => {
+              const count = filteredItems
+                .map((item) => ({
+                  ...item,
+                  pieces: item.pieces.filter(
+                    (piece) => piece.currentLocation._id === location._id,
+                  ),
+                }))
+                .filter((info) => info.pieces.length > 0).length;
 
-            if (count === 0) return null;
-            return (
-              <button
-                onClick={() => setFilterLocation(location._id)}
-                className={`cursor-pointer w-fit ${filterLocation === location._id && "border-b-2 border-neutral-400"}`}
-                key={location._id}
-              >
-                {location.name}({count})
-              </button>
-            );
-          })}
+              if (count === 0) return null;
+              return (
+                <button
+                  onClick={() => setFilterLocation(location._id)}
+                  className={`cursor-pointer w-fit ${filterLocation === location._id && "border-b-2 border-neutral-400"}`}
+                  key={location._id}
+                >
+                  {location.name}({count})
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedPackingList && (
+            <div className="flex items-center space-x-2">
+              <Label htmlFor="hidePacked-mode">Hide packed items</Label>
+              <Switch checked={hidePacked} onCheckedChange={setHidePacked} className="rounded-none" id="hidePacked-mode" />
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 mb-40">
@@ -318,14 +336,6 @@ export default function View() {
               />
             ))}
           </div>
-
-          {selectedPackingList && (
-            <div className="flex w-full justify-center">
-              <button className="rounded-none cursor-pointer ">
-                Add More Items
-              </button>
-            </div>
-          )}
         </div>
       </div>
 
@@ -623,7 +633,7 @@ function ItemView({
                   View Details <EyeIcon />
                 </Button>
 
-                {(allPiecesArePacked) ? (
+                {allPiecesArePacked ? (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" className="rounded-none">
@@ -632,7 +642,9 @@ function ItemView({
                     </AlertDialogTrigger>
                     <AlertDialogContent className="rounded-none">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Item is Locked (already packed)</AlertDialogTitle>
+                        <AlertDialogTitle>
+                          Item is Locked (already packed)
+                        </AlertDialogTitle>
                         <AlertDialogDescription>
                           All pieces of this item are currently packed for a
                           trip. To move or add them to a different packing list,
