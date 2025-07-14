@@ -9,6 +9,8 @@ import {
   DotIcon,
   EyeIcon,
   LoaderCircleIcon,
+  LockIcon,
+  LuggageIcon,
   XIcon,
 } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
@@ -34,6 +36,17 @@ import { SimpleDatePicker } from "./newItemInputs/simpleDatePicker";
 import { Card } from "./components/ui/card";
 import { formatDistanceToNow } from "date-fns";
 import { Progress } from "./components/ui/progress";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./components/ui/alert-dialog";
 
 export interface ClothingInfoItem {
   _id: Id<"clothingInfoItems">;
@@ -161,10 +174,11 @@ export default function View() {
     const searchWords = lowerCaseSearchTerm.split(" ").filter(Boolean); // Split by space and remove empty strings
 
     if (selectedPackingList) {
-      const packingListPieces = selectedPackingList.items.filter((pieceId) =>
-        item.pieces.find((piece) => piece._id === pieceId),
+      const piecesInPackingList = item.pieces.filter((piece) =>
+        selectedPackingList.items.some((pieceId) => pieceId === piece._id),
       );
-      if (packingListPieces.length === 0) return false;
+
+      if (piecesInPackingList.length === 0) return false;
     }
 
     // If there's no search term, return all items
@@ -291,7 +305,16 @@ export default function View() {
                 setItemsToBeMoved={setSelectedItems}
                 selectItem={handleSelectItem}
                 key={item._id}
-                item={item}
+                item={{
+                  ...item,
+                  pieces: selectedPackingList
+                    ? item.pieces.filter((piece) =>
+                        selectedPackingList.items.some(
+                          (pieceId) => pieceId === piece._id,
+                        ),
+                      )
+                    : item.pieces,
+                }}
               />
             ))}
           </div>
@@ -465,12 +488,24 @@ function ItemView({
   setItemsToBeMoved: Dispatch<SetStateAction<ClothingPiece[]>>;
 }) {
   const groupedLocations: { [locationName: string]: number } = {};
+  const groupedPackedPieces: {
+    [packingListId: Id<"packingLists">]: number;
+  } = {};
+
   item.pieces.forEach((piece) => {
-    const locationName = piece.currentLocation.name;
-    groupedLocations[locationName] = (groupedLocations[locationName] || 0) + 1;
+    if (piece.packed) {
+      groupedPackedPieces[piece.packed] =
+        (groupedPackedPieces[piece.packed] || 0) + 1;
+    } else {
+      const locationName = piece.currentLocation.name;
+      groupedLocations[locationName] =
+        (groupedLocations[locationName] || 0) + 1;
+    }
   });
 
   const [isHovered, setIsHovered] = useState(false);
+
+  const unpackPieces = useMutation(api.clothingItems.unpackPieces);
 
   // Convert grouped locations to an array of displayable strings
   const locationStrings = Object.entries(groupedLocations).map(
@@ -490,10 +525,30 @@ function ItemView({
     },
   );
 
+  const packedPieceInfo = Object.entries(groupedPackedPieces).map(
+    ([packingListId, count]) => {
+      return {
+        packingListId: packingListId as Id<"packingLists">,
+        count: count,
+      };
+    },
+  );
+
+  // Placeholder function for unpacking
+  const handleUnpackAndUnlock = (piece: ClothingPiece) => {
+    if (!piece.packed) return;
+    unpackPieces({
+      pieces: [piece._id],
+      packingList: piece.packed,
+    });
+  };
+
   function addToMoveItems(locName: string) {
+    // Find the first available (not packed) piece at the given location
     const newPiece = item.pieces.find(
       (piece) =>
         piece.currentLocation.name === locName &&
+        !piece.packed && // Only add pieces that are NOT packed
         !itemsToBeMoved.some((m) => m._id === piece._id),
     );
 
@@ -503,8 +558,13 @@ function ItemView({
   }
 
   function removeFromMoveItems(locName: string) {
+    // Find the first movable piece at the given location that matches this item info
+    // We need to find a specific piece to remove, not just any piece with the same location name
     const indexToRemove = itemsToBeMoved.findIndex(
-      (obj) => obj.currentLocation.name === locName && obj.info === item._id,
+      (obj) =>
+        obj.currentLocation.name === locName &&
+        obj.info === item._id &&
+        !obj.packed, // Ensure we only remove non-packed items from the selection
     );
 
     if (indexToRemove !== -1) {
@@ -516,18 +576,28 @@ function ItemView({
 
   function checkIfCanMove(locName: string, available: number) {
     const alreadyMoved = itemsToBeMoved.filter(
-      (obj) => obj.currentLocation.name === locName && obj.info === item._id,
+      (obj) =>
+        obj.currentLocation.name === locName &&
+        obj.info === item._id &&
+        !obj.packed,
     ).length;
     return available > alreadyMoved;
   }
 
   function handleSelectForSinglePiece() {
-    if (itemsToBeMoved.some((obj) => obj.info === item._id)) {
-      removeFromMoveItems(item.pieces[0].currentLocation.name);
+    const singlePiece = item.pieces[0];
+    if (singlePiece.packed) return; // Cannot select if packed
+
+    if (itemsToBeMoved.some((obj) => obj._id === singlePiece._id)) {
+      setItemsToBeMoved(
+        itemsToBeMoved.filter((obj) => obj._id !== singlePiece._id),
+      );
     } else {
-      addToMoveItems(item.pieces[0].currentLocation.name);
+      setItemsToBeMoved([...itemsToBeMoved, singlePiece]);
     }
   }
+
+  const allPiecesArePacked = item.pieces.every((piece) => piece.packed);
 
   return (
     <div className="flex flex-col gap-2 w-full relative mb-4">
@@ -552,11 +622,55 @@ function ItemView({
                 >
                   View Details <EyeIcon />
                 </Button>
-                {item.pieces.length > 1 ? (
+
+                {(allPiecesArePacked) ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" className="rounded-none">
+                        <LockIcon className="h-4 w-4 mr-2" /> All Packed
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-none">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Item is Locked (already packed)</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          All pieces of this item are currently packed for a
+                          trip. To move or add them to a different packing list,
+                          you need to unpack them first.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-none">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() =>
+                            item.pieces.forEach((piece) =>
+                              handleUnpackAndUnlock(piece),
+                            )
+                          }
+                          className="rounded-none"
+                        >
+                          Unpack and Unlock All
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : item.pieces.length > 1 ? (
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" className="rounded-none">
-                      { itemsToBeMoved.some((obj) => obj.info === item._id) ? <div className="flex gap-2 items-center">Edit Selection <ArrowRightIcon /></div> : <div className="flex gap-2 items-center">Select <ArrowRightIcon /></div>}
+                        {itemsToBeMoved.some(
+                          (obj) => obj.info === item._id && !obj.packed,
+                        ) ? (
+                          <div className="flex gap-2 items-center">
+                            Edit Selection <ArrowRightIcon />
+                          </div>
+                        ) : (
+                          <div className="flex gap-2 items-center">
+                            Select <ArrowRightIcon />
+                          </div>
+                        )}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="rounded-none pt-2">
@@ -585,7 +699,8 @@ function ItemView({
                                 itemsToBeMoved.filter(
                                   (obj) =>
                                     obj.currentLocation.name === data.name &&
-                                    obj.info === item._id,
+                                    obj.info === item._id &&
+                                    !obj.packed,
                                 ).length
                               }
                               className="w-20 text-center rounded-none"
@@ -606,15 +721,120 @@ function ItemView({
                           </div>
                         </div>
                       ))}
+                      {packedPieceInfo.length > 0 && (
+                        <div className="mt-4 border-t pt-4">
+                          <h4 className="text-sm font-semibold mb-2">
+                            Packed Pieces:
+                          </h4>
+                          {packedPieceInfo.map((packedData, index) => (
+                            <div
+                              key={packedData.packingListId + index}
+                              className="flex items-center justify-between py-1"
+                            >
+                              <div className="flex items-center gap-2 text-sm text-neutral-400">
+                                <LuggageIcon className="h-4 w-4" />
+                                {packedData.count}x Packed
+                              </div>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="rounded-none px-2"
+                                  >
+                                    Unpack
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="rounded-none">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Unpack Item
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This piece is currently packed. Do you
+                                      want to unpack it and make it available
+                                      again?
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="rounded-none">
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => {
+                                        const piecesToUnpack =
+                                          item.pieces.filter(
+                                            (p) =>
+                                              p.packed ===
+                                              packedData.packingListId,
+                                          );
+
+                                        if (piecesToUnpack.length > 0) {
+                                          unpackPieces({
+                                            pieces: piecesToUnpack.map(
+                                              (p) => p._id,
+                                            ),
+                                            packingList:
+                                              packedData.packingListId,
+                                          });
+                                        }
+                                      }}
+                                      className="rounded-none"
+                                    >
+                                      Unpack and Unlock
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </PopoverContent>
                   </Popover>
+                ) : // Single piece item
+                item.pieces[0]?.packed ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" className="rounded-none">
+                        <LockIcon className="h-4 w-4 mr-2" /> Packed
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-none">
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Item is Locked</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This item is currently packed for a trip. To move or
+                          add it to a different packing list, you need to unpack
+                          it first.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel className="rounded-none">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleUnpackAndUnlock(item.pieces[0])}
+                          className="rounded-none"
+                        >
+                          Unpack and Unlock
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 ) : (
                   <Button
                     onClick={handleSelectForSinglePiece}
                     variant="ghost"
                     className="rounded-none"
                   >
-                    { itemsToBeMoved.some((obj) => obj.info === item._id) ? <div>Deselect</div> : <div className="flex gap-2 items-center">Select <ArrowRightIcon /></div>}
+                    {itemsToBeMoved.some((obj) => obj.info === item._id) ? (
+                      <div>Deselect</div>
+                    ) : (
+                      <div className="flex gap-2 items-center">
+                        Select <ArrowRightIcon />
+                      </div>
+                    )}
                   </Button>
                 )}
               </div>
@@ -629,6 +849,14 @@ function ItemView({
           {locationStrings.map((locationString, index) => (
             <p key={index} className="text-xs mr-2">
               {locationString}
+            </p>
+          ))}
+          {packedPieceInfo.map((packedData, index) => (
+            <p
+              key={`packed-${index}`}
+              className="text-xs mr-2 text-neutral-400"
+            >
+              {packedData.count}x Packed
             </p>
           ))}
         </div>

@@ -214,6 +214,52 @@ export const packPieces = mutation({
   },
 });
 
+export const unpackPieces = mutation({
+  args: {
+    pieces: v.array(v.id("clothingPieces")),
+    packingList: v.id("packingLists"),
+    packingListExpired: v.optional(v.boolean()),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    if (args.pieces.length === 0) {
+      throw new Error("No pieces to unpack");
+    }
+
+    const packingListInfo = await ctx.db.get(args.packingList);
+
+    if (!packingListInfo || !packingListInfo.packingLocation) return;
+
+    const newLog = await ctx.db.insert("locationLogs", {
+      name: packingListInfo.packingLocation,
+    });
+
+    for (const pieceID of args.pieces) {
+      const piece = await ctx.db.get(pieceID);
+
+      if (!piece) {
+        throw new Error("Piece not found");
+      }
+
+      await ctx.db.patch(pieceID, {
+        packed: undefined,
+        locationHistory: [...piece.locationHistory, newLog],
+      });
+    }
+
+    if (args.packingListExpired ?? false) {
+      await ctx.db.patch(args.packingList, {
+        expired: true,
+      });
+    }
+}})
+
 export const getPackStatus = query({
   args: {
     packingList: v.id("packingLists"),
