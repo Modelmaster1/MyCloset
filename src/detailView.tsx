@@ -7,7 +7,7 @@ import TypesInput from "./newItemInputs/typesInput";
 import { format, formatDistanceToNow } from "date-fns";
 import ColorInput from "./newItemInputs/colorInput";
 import { Card } from "./components/ui/card";
-import { LoaderCircleIcon, XIcon } from "lucide-react";
+import { LoaderCircleIcon, LuggageIcon, XIcon } from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -211,8 +211,10 @@ export default function DetailView({
         {hasChanges && (
           <div className="absolute bottom-0 w-full">
             <div className="flex justify-end gap-3 items-center bg-black w-full p-4">
-
-              <button onClick={revertAnyChanges} className="opacity-80 cursor-pointer">
+              <button
+                onClick={revertAnyChanges}
+                className="opacity-80 cursor-pointer"
+              >
                 Revert Changes
               </button>
 
@@ -250,7 +252,7 @@ function LocationHistoryPieceItem({
   return (
     <AccordionItem value={item._id}>
       <AccordionTrigger>
-        {multiplePieces && "1x at"} {item.currentLocation.name} -{" "}
+        {multiplePieces && "1x"} {locationLogs[0].packingList ? `${locationLogs[0].packingList.name.toUpperCase()} (${item.currentLocation.name})` : ((multiplePieces ? "at " : "") + item.currentLocation.name)} -{" "}
         {format(locationLogs[0]._creationTime, "dd.MM")} (
         {formatDistanceToNow(locationLogs[0]._creationTime, {
           addSuffix: true,
@@ -277,7 +279,14 @@ function LocationHistoryPieceItem({
 
                 {/* Log details */}
                 <div className="flex-1">
-                  <div className="font-medium">{log.loc.name}</div>
+                  <div className="flex gap-1 items-center">
+                    {log.packingList && <LuggageIcon className="h-4 w-4" />}
+                    <div className="font-medium">
+                      {log.packingList
+                        ? `Packed for ${log.packingList.name} (${log.loc.name})`
+                        : log.loc.name}
+                    </div>
+                  </div>
                   <div className="text-sm text-muted-foreground">
                     {format(log._creationTime, "MMMM d, yyyy")} (
                     {formatDistanceToNow(log._creationTime, {

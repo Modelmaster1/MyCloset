@@ -55,6 +55,7 @@ export const getLocationHistoryLogs = query({
     const userID = identity.subject;
 
     const location = await ctx.db.query("locations").filter((q) => q.eq(q.field("user"), userID)).collect();
+    const packingLists = await ctx.db.query("packingLists").collect();
 
     const locationLogs = await ctx.db
       .query("locationLogs")
@@ -62,11 +63,13 @@ export const getLocationHistoryLogs = query({
     
     const locHistoryModel = locationLogs.filter((log) => args.locHistory.includes(log._id)).map((log) => {
       const loc = location.find((l) => l._id === log.name);
+      const packingList = log.packingList ? packingLists.find((l) => l._id === log.packingList) : null;
       if (!loc) return null;
       return {
         ...log,
         loc: loc,
         _id: log._id,
+        packingList: packingList ?? null,
       };
     }).filter((d) => d !== null).sort((a, b) => b._creationTime - a._creationTime);
 

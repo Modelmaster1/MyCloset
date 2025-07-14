@@ -59,6 +59,7 @@ export interface PackingList {
 export interface ClothingPiece {
   _id: Id<"clothingPieces">;
   _creationTime: number;
+  packed?: Id<"packingLists">;
   currentLocation: {
     _id: Id<"locations">;
     name: string;
@@ -122,7 +123,7 @@ export default function View() {
         packLocation: selectedPackingList.packingLocation,
       });
     } else if (selectedPackingList && !selectedPackingList.packingLocation) {
-        alert("Please select a packing location first");
+      alert("Please select a packing location first");
     }
 
     if (nextAction === "move" && location) {
@@ -837,8 +838,8 @@ function PackingListInfo({
           <div className="flex gap-2">
             <div className="flex flex-col gap-3">
               <Label htmlFor="packing">Packing Location</Label>
-
               <SearchableCreateSelect
+                disabled={true}
                 options={
                   locations
                     ? locations.map((location) => ({
@@ -876,13 +877,19 @@ function PackingListInfo({
           </div>
 
           <div className="flex flex-col gap-2 mt-4">
-            <Progress value={packingListStatus?.percentagePacked} />
-            <div className="w-fit text-sm opacity-50">{packingListStatus?.packedPieces.length} of {packingListStatus?.totalPieces.length} items packed</div>
+            <Progress
+              className="rounded-none"
+              value={packingListStatus?.percentagePacked}
+            />
+            <div className="w-fit text-sm opacity-50">
+              {packingListStatus?.packedPieces.length} of{" "}
+              {packingListStatus?.totalPieces.length} items packed
+            </div>
           </div>
         </div>
         {hasChanges && (
           <div className="absolute bottom-0 right-0">
-            <div className="flex justify-end gap-3 items-center p-4">
+            <div className="flex justify-end gap-3 items-center m-3 p-1 ps-4 bg-neutral-900">
               <button
                 onClick={clearFields}
                 className="opacity-80 cursor-pointer"

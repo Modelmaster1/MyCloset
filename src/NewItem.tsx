@@ -447,6 +447,7 @@ interface SearchableCreateSelectProps {
   onCreateNew?: (newValue: string) => void;
   onValueChange?: (value: string) => void;
   value?: string;
+  disabled?: boolean;
 }
 
 export function SearchableCreateSelect({
@@ -456,6 +457,7 @@ export function SearchableCreateSelect({
   onCreateNew,
   onValueChange,
   value,
+  disabled = false,
 }: SearchableCreateSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -489,7 +491,7 @@ export function SearchableCreateSelect({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild disabled={disabled}>
         <Button
           variant="outline"
           role="combobox"
