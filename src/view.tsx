@@ -521,6 +521,14 @@ function ItemView({
     return available > alreadyMoved;
   }
 
+  function handleSelectForSinglePiece() {
+    if (itemsToBeMoved.some((obj) => obj.info === item._id)) {
+      removeFromMoveItems(item.pieces[0].currentLocation.name);
+    } else {
+      addToMoveItems(item.pieces[0].currentLocation.name);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2 w-full relative mb-4">
       <div
@@ -544,61 +552,71 @@ function ItemView({
                 >
                   View Details <EyeIcon />
                 </Button>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" className="rounded-none">
-                      Select <ArrowRightIcon />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="rounded-none pt-2">
-                    {uniqueLocData.map((data, index) => (
-                      <div
-                        key={data.name + index}
-                        className="grid w-full items-center gap-3 mt-4"
-                      >
-                        <Label htmlFor="amount">
-                          {data.name} ({data.count} available)
-                        </Label>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="rounded-none"
-                            onClick={() => removeFromMoveItems(data.name)}
-                          >
-                            -
-                          </Button>
-                          <Input
-                            type="number"
-                            id="amount"
-                            value={
-                              itemsToBeMoved.filter(
-                                (obj) =>
-                                  obj.currentLocation.name === data.name &&
-                                  obj.info === item._id,
-                              ).length
-                            }
-                            className="w-20 text-center rounded-none"
-                            min="0"
-                            max={data.count}
-                            readOnly
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="rounded-none"
-                            disabled={!checkIfCanMove(data.name, data.count)}
-                            onClick={() => addToMoveItems(data.name)}
-                          >
-                            +
-                          </Button>
+                {item.pieces.length > 1 ? (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" className="rounded-none">
+                      { itemsToBeMoved.some((obj) => obj.info === item._id) ? <div className="flex gap-2 items-center">Edit Selection <ArrowRightIcon /></div> : <div className="flex gap-2 items-center">Select <ArrowRightIcon /></div>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="rounded-none pt-2">
+                      {uniqueLocData.map((data, index) => (
+                        <div
+                          key={data.name + index}
+                          className="grid w-full items-center gap-3 mt-4"
+                        >
+                          <Label htmlFor="amount">
+                            {data.name} ({data.count} available)
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="rounded-none"
+                              onClick={() => removeFromMoveItems(data.name)}
+                            >
+                              -
+                            </Button>
+                            <Input
+                              type="number"
+                              id="amount"
+                              value={
+                                itemsToBeMoved.filter(
+                                  (obj) =>
+                                    obj.currentLocation.name === data.name &&
+                                    obj.info === item._id,
+                                ).length
+                              }
+                              className="w-20 text-center rounded-none"
+                              min="0"
+                              max={data.count}
+                              readOnly
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="rounded-none"
+                              disabled={!checkIfCanMove(data.name, data.count)}
+                              onClick={() => addToMoveItems(data.name)}
+                            >
+                              +
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </PopoverContent>
-                </Popover>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <Button
+                    onClick={handleSelectForSinglePiece}
+                    variant="ghost"
+                    className="rounded-none"
+                  >
+                    { itemsToBeMoved.some((obj) => obj.info === item._id) ? <div>Deselect</div> : <div className="flex gap-2 items-center">Select <ArrowRightIcon /></div>}
+                  </Button>
+                )}
               </div>
             </div>
           </div>
