@@ -37,8 +37,9 @@ export default defineSchema({
   }),
 
   locationLogs: defineTable({
-    name: v.id("locations"),
+    name: v.optional(v.id("locations")),
     packingList: v.optional(v.id("packingLists")),
+    lost: v.optional(v.boolean()),
   }),
 
 

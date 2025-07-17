@@ -71,6 +71,7 @@ export const list = query({
     const urls = await Promise.all(
       infoItems.map((item) => ctx.storage.getUrl(item.pic)),
     );
+
     const result = infoItems.map((infoItem, index) => {
       const allPieces = pieces.filter((piece) => piece.info === infoItem._id);
       return {
@@ -218,7 +219,6 @@ export const unpackPieces = mutation({
   args: {
     pieces: v.array(v.id("clothingPieces")),
     packingList: v.id("packingLists"),
-    packingListExpired: v.optional(v.boolean()),
   },
 
   handler: async (ctx, args) => {
@@ -252,13 +252,8 @@ export const unpackPieces = mutation({
         locationHistory: [...piece.locationHistory, newLog],
       });
     }
-
-    if (args.packingListExpired ?? false) {
-      await ctx.db.patch(args.packingList, {
-        expired: true,
-      });
-    }
-}})
+  },
+});
 
 export const getPackStatus = query({
   args: {
@@ -287,5 +282,187 @@ export const getPackStatus = query({
       totalPieces: packingListInfo?.items,
       percentagePacked: Math.round(percentagePacked * 100),
     };
+  },
+});
+
+export const deletePiece = mutation({
+  args: {
+    piece: v.id("clothingPieces"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const piece = await ctx.db.get(args.piece);
+
+    if (!piece) {
+      throw new Error("Piece not found");
+    }
+
+    const packingLists = await ctx.db.query("packingLists").collect();
+
+    const packingListsWithPiece = packingLists.filter((list) =>
+      list.items.includes(piece._id),
+    );
+
+    if (packingListsWithPiece.length > 0) {
+      for (const list of packingListsWithPiece) {
+        await ctx.db.patch(list._id, {
+          items: list.items.filter((id) => id !== piece._id),
+        });
+      }
+    }
+
+    const numOfPieces = (
+      await ctx.db
+        .query("clothingPieces")
+        .filter((q) => q.eq(q.field("info"), piece.info))
+        .collect()
+    ).length;
+
+    // delete the piece
+    await ctx.db.delete(piece._id);
+
+    if (numOfPieces <= 1) {
+      // delete the info if there are no more pieces
+      await ctx.db.delete(piece.info);
+    }
+  },
+});
+
+export const markPieceLost = mutation({
+  args: {
+    piece: v.id("clothingPieces"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const piece = await ctx.db.get(args.piece);
+
+    if (!piece) {
+      throw new Error("Piece not found");
+    }
+
+    if (piece.lost) {
+      throw new Error("Piece already lost");
+    }
+
+    const log = await ctx.db.insert("locationLogs", {
+      lost: true,
+    });
+
+    await ctx.db.patch(piece._id, {
+      lost: Date.now(),
+      locationHistory: [...piece.locationHistory, log],
+    });
+  },
+});
+
+export const markPieceFound = mutation({
+  args: {
+    piece: v.id("clothingPieces"),
+    newLocation: v.id("locations"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const piece = await ctx.db.get(args.piece);
+
+    if (!piece) {
+      throw new Error("Piece not found");
+    }
+
+    if (!piece.lost) {
+      throw new Error("Piece not lost");
+    }
+
+    const newLocationLog = await ctx.db.insert("locationLogs", {
+      name: args.newLocation,
+    });
+
+    await ctx.db.patch(piece._id, {
+      lost: undefined,
+      locationHistory: [...piece.locationHistory, newLocationLog],
+      currentLocation: args.newLocation,
+    });
+  },
+});
+
+export const getPieces = query({
+  args: {
+    info: v.id("clothingInfoItems"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const locations = await ctx.db.query("locations").collect();
+
+    const pieces = await ctx.db
+      .query("clothingPieces")
+      .filter((q) => q.eq(q.field("info"), args.info))
+      .collect();
+
+    const result = pieces.map((piece) => {
+      const matchedLoc = locations.find(
+        (location) => location._id === piece.currentLocation,
+      );
+      return {
+        ...piece,
+        currentLocation: {
+          _id: piece.currentLocation ?? "error",
+          name: matchedLoc?.name ?? "error",
+        },
+      };
+    });
+    return result;
+  },
+});
+
+export const addNewPiece = mutation({
+  args: {
+    info: v.id("clothingInfoItems"),
+    location: v.id("locations"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const info = await ctx.db.get(args.info);
+
+    if (!info) {
+      throw new Error("Info not found");
+    }
+
+    const log = await ctx.db.insert("locationLogs", {
+      name: args.location,
+    });
+
+    await ctx.db.insert("clothingPieces", {
+      info: args.info,
+      currentLocation: args.location,
+      locationHistory: [log],
+    });
   },
 });

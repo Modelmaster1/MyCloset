@@ -64,10 +64,9 @@ export const getLocationHistoryLogs = query({
     const locHistoryModel = locationLogs.filter((log) => args.locHistory.includes(log._id)).map((log) => {
       const loc = location.find((l) => l._id === log.name);
       const packingList = log.packingList ? packingLists.find((l) => l._id === log.packingList) : null;
-      if (!loc) return null;
       return {
         ...log,
-        loc: loc,
+        loc: loc ?? null,
         _id: log._id,
         packingList: packingList ?? null,
       };

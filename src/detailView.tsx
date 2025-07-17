@@ -1,5 +1,12 @@
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "./components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./components/ui/dialog";
 import { ClothingPiece, type ClothingInfoItem } from "./view";
 import { Color } from "convex/schema";
 import BrandInput from "./newItemInputs/brandInput";
@@ -7,7 +14,14 @@ import TypesInput from "./newItemInputs/typesInput";
 import { format, formatDistanceToNow } from "date-fns";
 import ColorInput from "./newItemInputs/colorInput";
 import { Card } from "./components/ui/card";
-import { LoaderCircleIcon, LuggageIcon, XIcon } from "lucide-react";
+import {
+  LoaderCircleIcon,
+  LuggageIcon,
+  SearchCheckIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+  XIcon,
+} from "lucide-react";
 import {
   Accordion,
   AccordionContent,
@@ -18,6 +32,18 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Button } from "./components/ui/button";
 import { Id } from "convex/_generated/dataModel";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { SearchableCreateSelect } from "./NewItem";
 
 export default function DetailView({
   open,
@@ -32,13 +58,22 @@ export default function DetailView({
   const [selectedColors, setSelectedColors] = useState<Color[]>(item.colors);
   const [brandInput, setBrandInput] = useState(item.brand);
   const [loading, setLoading] = useState(false);
+  const [newPieceDialogOpen, setNewPieceDialogOpen] = useState(false);
 
   const [types, setTypes] = useState<string[]>(item.types);
   const multiplePieces = item.pieces.length > 1;
   const updateInfo = useMutation(api.clothingItems.editInfo);
   const generateUploadUrl = useMutation(api.upload.generateUploadUrl);
+  const [newLocation, setNewLocation] = useState<Id<"locations"> | null>(null);
+  const locations = useQuery(api.locations.list);
+  const createLocation = useMutation(api.locations.create);
+  const addNewPiece = useMutation(api.clothingItems.addNewPiece);
 
   const filePreview = newFile ? URL.createObjectURL(newFile) : null;
+
+  const pieces = useQuery(api.clothingItems.getPieces, {
+    info: item._id,
+  });
 
   const hasChanges =
     brandInput !== item.brand ||
@@ -192,13 +227,87 @@ export default function DetailView({
               className="w-full p-3"
               defaultValue="item-1"
             >
-              {item.pieces.map((piece) => (
-                <LocationHistoryPieceItem
-                  multiplePieces={multiplePieces}
-                  key={piece._id}
-                  item={piece}
-                />
-              ))}
+              {pieces &&
+                pieces.map((piece) => (
+                  <LocationHistoryPieceItem
+                    multiplePieces={multiplePieces}
+                    key={piece._id}
+                    item={piece}
+                  />
+                ))}
+              <div className="flex justify-between py-2 text-sm items-center">
+                <div className="opacity-50">Bought another?</div>
+                <Dialog
+                  open={newPieceDialogOpen}
+                  onOpenChange={setNewPieceDialogOpen}
+                >
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="rounded-none cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+                    >
+                      Add piece
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-none">
+                    <DialogHeader>
+                      <DialogTitle>Bought another piece!</DialogTitle>
+                      <DialogDescription>
+                        Awesome! Where is it right now?
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3">
+                      <SearchableCreateSelect
+                        options={
+                          locations
+                            ? locations.map((location) => ({
+                                value: location._id,
+                                label: location.name,
+                              }))
+                            : [{ value: "", label: "loading..." }]
+                        }
+                        value={newLocation ?? ""}
+                        onValueChange={(value) => {
+                          setNewLocation(value as Id<"locations"> | null);
+                        }}
+                        placeholder="Select a location..."
+                        emptyMessage="No location found."
+                        onCreateNew={async (newLocName) => {
+                          if (newLocName.trim() === "") return;
+                          const locId = await createLocation({
+                            name: newLocName,
+                          });
+                          setNewLocation(locId);
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <Button
+                        onClick={() => {
+                          if (!newLocation) return;
+                          setLoading(true);
+                          addNewPiece({
+                            info: item._id,
+                            location: newLocation,
+                          });
+                          setNewPieceDialogOpen(false);
+                          setNewLocation(null);
+                          setLoading(false);
+                        }}
+                        disabled={!newLocation}
+                        className="rounded-none"
+                      >
+                        {loading ? (
+                          <LoaderCircleIcon className="animate-spin" />
+                        ) : (
+                          "Add piece"
+                        )}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </Accordion>
             <div
               className="absolute z-10 m-2 top-0 right-0 bg-black/50 p-1 aspect-square cursor-pointer"
@@ -247,17 +356,61 @@ function LocationHistoryPieceItem({
     locHistory: item.locationHistory,
   });
 
+  const [newLocation, setNewLocation] = useState<Id<"locations"> | null>(null);
+
+  const deletePiece = useMutation(api.clothingItems.deletePiece);
+  const markPieceLost = useMutation(api.clothingItems.markPieceLost);
+  const markPieceFound = useMutation(api.clothingItems.markPieceFound);
+  const locations = useQuery(api.locations.list);
+  const createLocation = useMutation(api.locations.create);
+
+  const [openFoundDialog, setOpenFoundDialog] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  function handleMarkLost() {
+    markPieceLost({
+      piece: item._id,
+    });
+  }
+
   if (!locationLogs) return null;
 
   return (
     <AccordionItem value={item._id}>
       <AccordionTrigger>
-        {multiplePieces && "1x"} {locationLogs[0].packingList ? `${locationLogs[0].packingList.name.toUpperCase()} (${item.currentLocation.name})` : ((multiplePieces ? "at " : "") + item.currentLocation.name)} -{" "}
-        {format(locationLogs[0]._creationTime, "dd.MM")} (
-        {formatDistanceToNow(locationLogs[0]._creationTime, {
-          addSuffix: true,
-        })}
-        )
+        <div className="flex items-center gap-2">
+          {/* Show quantity if multiple pieces exist */}
+          {multiplePieces && <span>1x</span>}
+
+          {/* Show lost status if applicable */}
+          {locationLogs[0].lost ? (
+            <span>Lost (at {item.currentLocation.name})</span>
+          ) : (
+            /* Show current location or packing list */
+            <span>
+              {locationLogs[0].packingList ? (
+                <>
+                  {locationLogs[0].packingList.name.toUpperCase()} (
+                  {item.currentLocation.name})
+                </>
+              ) : (
+                <>
+                  {multiplePieces && "at "}
+                  {item.currentLocation.name}
+                </>
+              )}
+            </span>
+          )}
+
+          {/* Show timestamp */}
+          <span className="text-muted-foreground">
+            - {format(locationLogs[0]._creationTime, "dd.MM")} (
+            {formatDistanceToNow(locationLogs[0]._creationTime, {
+              addSuffix: true,
+            })}
+            )
+          </span>
+        </div>
       </AccordionTrigger>
       <AccordionContent>
         <div className="px-6 py-4">
@@ -281,10 +434,13 @@ function LocationHistoryPieceItem({
                 <div className="flex-1">
                   <div className="flex gap-1 items-center">
                     {log.packingList && <LuggageIcon className="h-4 w-4" />}
+                    {log.lost && <TriangleAlertIcon className="h-4 w-4" />}
                     <div className="font-medium">
-                      {log.packingList
-                        ? `Packed for ${log.packingList.name} (${log.loc.name})`
-                        : log.loc.name}
+                      {log.loc
+                        ? log.packingList
+                          ? `Packed for ${log.packingList.name} (${log.loc.name})`
+                          : log.loc.name
+                        : "Lost"}
                     </div>
                   </div>
                   <div className="text-sm text-muted-foreground">
@@ -298,6 +454,123 @@ function LocationHistoryPieceItem({
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {item.lost ? (
+            <Dialog open={openFoundDialog} onOpenChange={setOpenFoundDialog}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="rounded-none cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+                >
+                  <SearchCheckIcon />
+                  <div>Mark as found</div>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-none">
+                <DialogHeader>
+                  <DialogTitle>Found it!</DialogTitle>
+                  <DialogDescription>
+                    Awesome! Where did you find it?
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex flex-col gap-3">
+                  <SearchableCreateSelect
+                    options={
+                      locations
+                        ? locations.map((location) => ({
+                            value: location._id,
+                            label: location.name,
+                          }))
+                        : [{ value: "", label: "loading..." }]
+                    }
+                    value={newLocation ?? ""}
+                    onValueChange={(value) => {
+                      setNewLocation(value as Id<"locations"> | null);
+                    }}
+                    placeholder="Select a location..."
+                    emptyMessage="No location found."
+                    onCreateNew={async (newLocName) => {
+                      if (newLocName.trim() === "") return;
+                      const locId = await createLocation({ name: newLocName });
+                      setNewLocation(locId);
+                    }}
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    onClick={() => {
+                      if (!newLocation) return;
+                      setLoading(true);
+                      markPieceFound({
+                        piece: item._id,
+                        newLocation: newLocation,
+                      });
+                      setOpenFoundDialog(false);
+                      setLoading(false);
+                      setNewLocation(null);
+                    }}
+                    disabled={!newLocation}
+                    className="rounded-none"
+                  >
+                    {loading ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : "Mark item as found"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Button
+              variant="ghost"
+              className="rounded-none cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+              onClick={handleMarkLost}
+            >
+              <TriangleAlertIcon />
+              <div>Mark as lost</div>
+            </Button>
+          )}
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                className="rounded-none cursor-pointer opacity-50 hover:opacity-100 transition-opacity"
+              >
+                <Trash2Icon />
+                <div>Delete Piece</div>
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="rounded-none">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete
+                  your clothing item and remove its data from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="rounded-none">
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="rounded-none"
+                  onClick={() => {
+                    setLoading(true);
+                    deletePiece({
+                      piece: item._id,
+                    });
+                    setLoading(false);
+                  }}
+                >
+                  {loading ? (
+                    <LoaderCircleIcon className="animate-spin" />
+                  ) : "Yes, delete item"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </AccordionContent>
     </AccordionItem>
