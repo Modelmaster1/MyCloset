@@ -268,7 +268,7 @@ export default function View() {
           <div className="flex items-center justify-between">
             <div className="flex gap-0 items-center">
               <div className="cursor-pointer" onClick={() => openUserProfile()}>
-                {user?.fullName}
+                {user?.fullName ?? user.emailAddresses[0].emailAddress}
               </div>
               <DotIcon />
               <Button
