@@ -1,8 +1,8 @@
 "use client";
 
 import { Authenticated, Unauthenticated } from "convex/react";
-import { SignInButton } from "@clerk/clerk-react";
 import View from "./view";
+import HomePage from "./HomePage";
 
 export default function App() {
   return (
@@ -11,7 +11,7 @@ export default function App() {
         <View />
       </Authenticated>
       <Unauthenticated>
-        <SignInButton mode="modal" />
+        <HomePage />
       </Unauthenticated>
     </>
   );
