@@ -14,6 +14,7 @@ import {
   LuggageIcon,
   PlaneIcon,
   PlusIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react";
 import { Dispatch, SetStateAction, useEffect, useState } from "react";
@@ -560,12 +561,13 @@ function ItemView({
   const groupedPackedPieces: {
     [packingListId: Id<"packingLists">]: number;
   } = {};
+  const lostPiecesCount = item.pieces.filter((p) => p.lost).length;
 
   item.pieces.forEach((piece) => {
     if (piece.packed) {
       groupedPackedPieces[piece.packed] =
         (groupedPackedPieces[piece.packed] || 0) + 1;
-    } else {
+    } else if (!piece.lost) {
       const locationName = piece.currentLocation.name;
       groupedLocations[locationName] =
         (groupedLocations[locationName] || 0) + 1;
@@ -618,6 +620,7 @@ function ItemView({
       (piece) =>
         piece.currentLocation.name === locName &&
         !piece.packed && // Only add pieces that are NOT packed
+        !piece.lost &&
         !itemsToBeMoved.some((m) => m._id === piece._id),
     );
 
@@ -633,7 +636,8 @@ function ItemView({
       (obj) =>
         obj.currentLocation.name === locName &&
         obj.info === item._id &&
-        !obj.packed, // Ensure we only remove non-packed items from the selection
+        !obj.packed && // Ensure we only remove non-packed items from the selection
+        !obj.lost,
     );
 
     if (indexToRemove !== -1) {
@@ -648,14 +652,15 @@ function ItemView({
       (obj) =>
         obj.currentLocation.name === locName &&
         obj.info === item._id &&
-        !obj.packed,
+        !obj.packed &&
+        !obj.lost,
     ).length;
     return available > alreadyMoved;
   }
 
   function handleSelectForSinglePiece() {
     const singlePiece = item.pieces[0];
-    if (singlePiece.packed) return; // Cannot select if packed
+    if (singlePiece.packed || singlePiece.lost) return; // Cannot select if packed or lost
 
     if (itemsToBeMoved.some((obj) => obj._id === singlePiece._id)) {
       setItemsToBeMoved(
@@ -667,6 +672,10 @@ function ItemView({
   }
 
   const allPiecesArePacked = item.pieces.every((piece) => piece.packed);
+  const allPiecesAreLost = item.pieces.every((piece) => piece.lost);
+  const allPiecesAreUnavailable = item.pieces.every(
+    (piece) => piece.packed || piece.lost,
+  );
 
   return (
     <div className="flex flex-col gap-2 w-full relative mb-4">
@@ -727,12 +736,21 @@ function ItemView({
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                ) : allPiecesAreLost ? (
+                  <Button variant="ghost" className="rounded-none" disabled>
+                    <TriangleAlertIcon className="h-4 w-4 mr-2" /> All Lost
+                  </Button>
+                ) : allPiecesAreUnavailable ? (
+                  <Button variant="ghost" className="rounded-none" disabled>
+                    <LockIcon className="h-4 w-4 mr-2" /> All Unavailable
+                  </Button>
                 ) : item.pieces.length > 1 ? (
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button variant="ghost" className="rounded-none">
                         {itemsToBeMoved.some(
-                          (obj) => obj.info === item._id && !obj.packed,
+                          (obj) =>
+                            obj.info === item._id && !obj.packed && !obj.lost,
                         ) ? (
                           <div className="flex gap-2 items-center">
                             Edit Selection <ArrowRightIcon />
@@ -771,7 +789,8 @@ function ItemView({
                                   (obj) =>
                                     obj.currentLocation.name === data.name &&
                                     obj.info === item._id &&
-                                    !obj.packed,
+                                    !obj.packed &&
+                                    !obj.lost,
                                 ).length
                               }
                               className="w-20 text-center rounded-none"
@@ -861,6 +880,19 @@ function ItemView({
                           ))}
                         </div>
                       )}
+                      {lostPiecesCount > 0 && (
+                        <div className="mt-4 border-t pt-4">
+                          <h4 className="text-sm font-semibold mb-2">
+                            Lost Pieces:
+                          </h4>
+                          <div className="flex items-center justify-between py-1">
+                            <div className="flex items-center gap-2 text-sm text-red-500">
+                              <TriangleAlertIcon className="h-4 w-4" />
+                              {lostPiecesCount}x Lost
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </PopoverContent>
                   </Popover>
                 ) : // Single piece item
@@ -893,6 +925,10 @@ function ItemView({
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                ) : item.pieces[0]?.lost ? (
+                  <Button variant="ghost" className="rounded-none" disabled>
+                    <LockIcon className="h-4 w-4 mr-2" /> Lost
+                  </Button>
                 ) : (
                   <Button
                     onClick={handleSelectForSinglePiece}
@@ -930,6 +966,11 @@ function ItemView({
               {packedData.count}x Packed
             </p>
           ))}
+          {lostPiecesCount > 0 && (
+            <p className="text-xs mr-2 text-red-500">
+              {lostPiecesCount}x Lost
+            </p>
+          )}
         </div>
       </div>
     </div>
