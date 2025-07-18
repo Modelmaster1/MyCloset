@@ -106,7 +106,7 @@ export default function View() {
   const [location, setLocation] = useState<Id<"locations"> | null>(null);
   const createLocation = useMutation(api.locations.create);
   const movePieces = useMutation(api.clothingItems.move);
-  const packingLists = useQuery(api.packinglists.list);
+  const packingLists = useQuery(api.packinglists.list, {});
   const addItemsToPackingList = useMutation(
     api.packinglists.addItemsToPackingList,
   );
@@ -967,9 +967,7 @@ function ItemView({
             </p>
           ))}
           {lostPiecesCount > 0 && (
-            <p className="text-xs mr-2 text-red-500">
-              {lostPiecesCount}x Lost
-            </p>
+            <p className="text-xs mr-2 text-red-500">{lostPiecesCount}x Lost</p>
           )}
         </div>
       </div>
@@ -982,7 +980,7 @@ function PackingListSelector({
 }: {
   selectPackingList: (packingList: PackingList) => void;
 }) {
-  const packingLists = useQuery(api.packinglists.list);
+  const packingLists = useQuery(api.packinglists.list, {});
   const locations = useQuery(api.locations.list); // Fetch locations for the create form
 
   // State for the new packing list form
@@ -1179,6 +1177,7 @@ function PackingListInfo({
   const createLocation = useMutation(api.locations.create);
 
   const updatePackingList = useMutation(api.packinglists.update);
+  const markPackingListExpired = useMutation(api.packinglists.markPackingListExpired);
 
   useEffect(() => {
     clearFields();
@@ -1243,46 +1242,89 @@ function PackingListInfo({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
+          <div className="flex justify-between items-end">
+            <div className="flex gap-2">
+              <div className="flex flex-col gap-3">
+                <Label htmlFor="packing">Packing Location</Label>
+                <SearchableCreateSelect
+                  disabled={(packingListStatus?.packedPieces.length ?? 5) > 0}
+                  options={
+                    locations
+                      ? locations.map((location) => ({
+                          value: location._id,
+                          label: location.name,
+                        }))
+                      : [{ value: "", label: "loading..." }]
+                  }
+                  value={packingLoc ?? ""}
+                  onValueChange={(value) => {
+                    setPackingLoc(value as Id<"locations"> | null);
+                  }}
+                  placeholder="Select a location..."
+                  emptyMessage="No location found."
+                  onCreateNew={async (newLocName) => {
+                    if (newLocName.trim() === "") return;
+                    const locId = await createLocation({ name: newLocName });
+                    setPackingLoc(locId);
+                  }}
+                />
+              </div>
+              <div className="flex items-end gap-1">
+                <SimpleDatePicker
+                  name="Departure date"
+                  date={departureDate}
+                  setDate={setDepartureDate}
+                />
 
-          <div className="flex gap-2">
-            <div className="flex flex-col gap-3">
-              <Label htmlFor="packing">Packing Location</Label>
-              <SearchableCreateSelect
-                disabled={(packingListStatus?.packedPieces.length ?? 5) > 0}
-                options={
-                  locations
-                    ? locations.map((location) => ({
-                        value: location._id,
-                        label: location.name,
-                      }))
-                    : [{ value: "", label: "loading..." }]
-                }
-                value={packingLoc ?? ""}
-                onValueChange={(value) => {
-                  setPackingLoc(value as Id<"locations"> | null);
-                }}
-                placeholder="Select a location..."
-                emptyMessage="No location found."
-                onCreateNew={async (newLocName) => {
-                  if (newLocName.trim() === "") return;
-                  const locId = await createLocation({ name: newLocName });
-                  setPackingLoc(locId);
-                }}
-              />
+                {departureDate && (
+                  <div className="opacity-50 p-1.5">
+                    ({formatDistanceToNow(departureDate, { addSuffix: true })})
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex items-end gap-1">
-              <SimpleDatePicker
-                name="Departure date"
-                date={departureDate}
-                setDate={setDepartureDate}
-              />
 
-              {departureDate && (
-                <div className="opacity-50 p-1.5">
-                  ({formatDistanceToNow(departureDate, { addSuffix: true })})
-                </div>
-              )}
-            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="rounded-none cursor-pointer opacity-50 hover:opacity-100 transition-opacity w-fit"
+                >
+                  Mark as Expired
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent className="rounded-none">
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently disable
+                    your packing list and remove its packed items.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel className="rounded-none">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="rounded-none"
+                    onClick={() => {
+                      setLoading(true);
+                      markPackingListExpired({
+                        packingList: packingList._id,
+                      });
+                      deselectPackingList();
+                      setLoading(false);
+                    }}
+                  >
+                    {loading ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      "Yes, mark as expired"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
 
           <div className="flex flex-col gap-2 mt-4">

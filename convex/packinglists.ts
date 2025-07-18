@@ -1,22 +1,31 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { api } from "../convex/_generated/api";
 
 export const list = query({
-  handler: async (ctx) => {
+  args: {
+    showExpired: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
     const userID = identity.subject;
+    const showExpired = args.showExpired ?? false;
 
     const pieces = await ctx.db.query("clothingPieces").collect();
     const locations = await ctx.db.query("locations").collect();
 
-    const packingLists = await ctx.db
+    var packingLists = await ctx.db
       .query("packingLists")
       .filter((q) => q.eq(q.field("user"), userID))
-      .collect();
+      .collect()
+    
+    if (!showExpired) {
+      packingLists = packingLists.filter((list) => !list.expired);
+    }
 
     const packingListModels = packingLists.map((list) => {
       const piecesInList = pieces.filter((piece) =>
@@ -128,34 +137,70 @@ export const addItemsToPackingList = mutation({
 });
 
 export const removeItemsFromPackingList = mutation({
-    args: {
-      pieces: v.array(v.id("clothingPieces")),
-      packingList: v.id("packingLists"),
-    },
-  
-    handler: async (ctx, args) => {
-      const identity = await ctx.auth.getUserIdentity();
-  
-      if (!identity) {
-        throw new Error("Not authenticated");
-      }
-  
-      if (args.pieces.length === 0) {
-        throw new Error("No pieces to remove");
-      }
-  
-      const packingListInfo = await ctx.db.get(args.packingList);
-  
-      if (!packingListInfo) {
-        throw new Error("Packing list not found");
-      }
-  
-      await ctx.db.patch(args.packingList, {
-        items: packingListInfo.items.filter((id) => !args.pieces.includes(id)),
-      });
+  args: {
+    pieces: v.array(v.id("clothingPieces")),
+    packingList: v.id("packingLists"),
+  },
 
-      const packingList = await ctx.db.get(args.packingList);
-  
-      return packingList;
-    },
-  });
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    if (args.pieces.length === 0) {
+      throw new Error("No pieces to remove");
+    }
+
+    const packingListInfo = await ctx.db.get(args.packingList);
+
+    if (!packingListInfo) {
+      throw new Error("Packing list not found");
+    }
+
+    await ctx.db.patch(args.packingList, {
+      items: packingListInfo.items.filter((id) => !args.pieces.includes(id)),
+    });
+
+    const packingList = await ctx.db.get(args.packingList);
+
+    return packingList;
+  },
+});
+
+export const markPackingListExpired = mutation({
+  args: {
+    packingList: v.id("packingLists"),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const packingListInfo = await ctx.db.get(args.packingList);
+
+    if (!packingListInfo) {
+      throw new Error("Packing list not found");
+    }
+
+    const itemsPacked = await ctx.db
+      .query("clothingPieces")
+      .filter((q) => q.eq(q.field("packed"), args.packingList))
+      .collect();
+
+    await ctx.runMutation(api.clothingItems.unpackPieces, {
+      pieces: itemsPacked.map((p) => p._id),
+      packingList: args.packingList,
+    });
+
+    await ctx.db.patch(args.packingList, {
+      expired: true,
+    });
+
+    const packingList = await ctx.db.get(args.packingList);
+    return packingList
+  },
+});
