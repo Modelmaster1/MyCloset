@@ -110,6 +110,9 @@ export default function View() {
     api.packinglists.addItemsToPackingList,
   );
   const packItems = useMutation(api.clothingItems.packPieces);
+  const removeItemsFromPackingList = useMutation(
+    api.packinglists.removeItemsFromPackingList,
+  );
   const [filterLocation, setFilterLocation] = useState<Id<"locations"> | null>(
     null,
   );
@@ -117,6 +120,10 @@ export default function View() {
   const [nextAction, setNextAction] = useState<"move" | "addToPackingList">(
     "move",
   );
+
+  const [nextActionInPackingList, setNextActionInPackingList] = useState<
+    "pack" | "removeFromPackingList"
+  >("pack");
 
   function deselectPackingList() {
     setSelectedPackingList(null);
@@ -134,14 +141,31 @@ export default function View() {
   async function handlePiecesAction() {
     setLoading(true);
 
-    if (selectedPackingList && selectedPackingList.packingLocation) {
-      await packItems({
-        pieces: selectedItems.map((piece) => piece._id),
-        packingList: selectedPackingList._id,
-        packLocation: selectedPackingList.packingLocation,
-      });
-    } else if (selectedPackingList && !selectedPackingList.packingLocation) {
-      alert("Please select a packing location first");
+    if (selectedPackingList) {
+      if (nextActionInPackingList === "removeFromPackingList") {
+        const newPackingList = await removeItemsFromPackingList({
+          pieces: selectedItems.map((piece) => piece._id),
+          packingList: selectedPackingList._id,
+        });
+        if (newPackingList) {
+          setSelectedPackingList(newPackingList);
+        }
+      }
+      if (
+        selectedPackingList.packingLocation &&
+        nextActionInPackingList === "pack"
+      ) {
+        await packItems({
+          pieces: selectedItems.map((piece) => piece._id),
+          packingList: selectedPackingList._id,
+          packLocation: selectedPackingList.packingLocation,
+        });
+      } else if (
+        nextActionInPackingList === "pack" &&
+        !selectedPackingList.packingLocation
+      ) {
+        alert("Please select a packing location first");
+      }
     }
 
     if (nextAction === "move" && location) {
@@ -375,11 +399,23 @@ export default function View() {
                   </button>
                 </div>
               ) : (
-                <button
-                  className={`cursor-pointer w-fit border-b-2 border-neutral-400`}
-                >
-                  Pack Items
-                </button>
+                <div className="flex gap-3 items-center">
+                  <button
+                    onClick={() => setNextActionInPackingList("pack")}
+                    className={`cursor-pointer w-fit ${nextActionInPackingList === "pack" && "border-b-2 border-neutral-400"}`}
+                  >
+                    Pack Items
+                  </button>
+                  <div className="rounded-full bg-neutral-400 h-1 w-1"></div>
+                  <button
+                    onClick={() =>
+                      setNextActionInPackingList("removeFromPackingList")
+                    }
+                    className={`cursor-pointer w-fit ${nextActionInPackingList === "removeFromPackingList" && "border-b-2 border-neutral-400"}`}
+                  >
+                    Remove from Packing List
+                  </button>
+                </div>
               )}
             </div>
 
@@ -400,18 +436,33 @@ export default function View() {
                 })}
               </div>
               {selectedPackingList ? (
-                <Button
-                  variant="default"
-                  className="rounded-none"
-                  onClick={handlePiecesAction}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <LoaderCircleIcon className="animate-spin" />
-                  ) : (
-                    `Pack ${selectedItems.length} item${selectedItems.length > 1 ? "s" : ""}`
-                  )}
-                </Button>
+                nextActionInPackingList === "pack" ? (
+                  <Button
+                    variant="default"
+                    className="rounded-none"
+                    onClick={handlePiecesAction}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      `Pack ${selectedItems.length} item${selectedItems.length > 1 ? "s" : ""}`
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="default"
+                    className="rounded-none"
+                    onClick={handlePiecesAction}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <LoaderCircleIcon className="animate-spin" />
+                    ) : (
+                      `Remove ${selectedItems.length} item${selectedItems.length > 1 ? "s" : ""} from packing list`
+                    )}
+                  </Button>
+                )
               ) : nextAction === "move" ? (
                 <>
                   <SearchableCreateSelect
@@ -920,7 +971,7 @@ function PackingListSelector({
     try {
       await createPackingList({
         name: name,
-      description: description ?? undefined,
+        description: description ?? undefined,
         packingLocation: packingLoc ?? undefined,
         departureDate: departureDate ? departureDate.getTime() : undefined,
       });
@@ -1156,7 +1207,7 @@ function PackingListInfo({
             <div className="flex flex-col gap-3">
               <Label htmlFor="packing">Packing Location</Label>
               <SearchableCreateSelect
-                disabled={((packingListStatus?.packedPieces.length ?? 5) > 0)}
+                disabled={(packingListStatus?.packedPieces.length ?? 5) > 0}
                 options={
                   locations
                     ? locations.map((location) => ({

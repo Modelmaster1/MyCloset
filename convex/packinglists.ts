@@ -126,3 +126,36 @@ export const addItemsToPackingList = mutation({
     return packingList;
   },
 });
+
+export const removeItemsFromPackingList = mutation({
+    args: {
+      pieces: v.array(v.id("clothingPieces")),
+      packingList: v.id("packingLists"),
+    },
+  
+    handler: async (ctx, args) => {
+      const identity = await ctx.auth.getUserIdentity();
+  
+      if (!identity) {
+        throw new Error("Not authenticated");
+      }
+  
+      if (args.pieces.length === 0) {
+        throw new Error("No pieces to remove");
+      }
+  
+      const packingListInfo = await ctx.db.get(args.packingList);
+  
+      if (!packingListInfo) {
+        throw new Error("Packing list not found");
+      }
+  
+      await ctx.db.patch(args.packingList, {
+        items: packingListInfo.items.filter((id) => !args.pieces.includes(id)),
+      });
+
+      const packingList = await ctx.db.get(args.packingList);
+  
+      return packingList;
+    },
+  });
