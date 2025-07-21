@@ -9,7 +9,7 @@ export const create = mutation({
       v.object({
         storageId: v.id("_storage"),
         colors: v.array(colorEnum),
-        brand: v.string(),
+        brand: v.optional(v.string()),
         types: v.array(v.string()),
         piecesAmount: v.number(),
       }),
@@ -141,6 +141,7 @@ export const editInfo = mutation({
     currentId: v.id("clothingInfoItems"),
     pic: v.optional(v.id("_storage")),
     brand: v.optional(v.string()),
+    forceBrand: v.optional(v.boolean()),
     types: v.optional(v.array(v.string())),
     colors: v.optional(v.array(colorEnum)),
   },
@@ -162,7 +163,7 @@ export const editInfo = mutation({
     if (args.pic !== undefined) {
       patchObject.pic = args.pic;
     }
-    if (args.brand !== undefined) {
+    if (args.brand !== undefined || args.forceBrand == true) {
       patchObject.brand = args.brand;
     }
     if (args.types !== undefined) {

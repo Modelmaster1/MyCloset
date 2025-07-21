@@ -56,7 +56,7 @@ import { Switch } from "./components/ui/switch";
 export interface ClothingInfoItem {
   _id: Id<"clothingInfoItems">;
   _creationTime: number;
-  brand: string;
+  brand?: string;
   types: string[];
   colors: Color[];
   pieces: ClothingPiece[];
@@ -226,7 +226,10 @@ export default function View() {
     // Check if all search words are present in any of the item's attributes
     return searchWords.every((word) => {
       // Check if the word is in the brand
-      const brandMatches = item.brand.toLowerCase().includes(word);
+
+      const brandMatches = item.brand
+        ? item.brand.toLowerCase().includes(word)
+        : false;
 
       // Check if the word is in any of the types
       const typeMatches = item.types.some((type) =>
@@ -950,7 +953,7 @@ function ItemView({
         )}
       </div>
       <div className="bg-black bg-opacity-50 text-white p-2">
-        <p className="text-sm">{item.brand}</p>
+        <p className="text-sm" style={{opacity: item.brand ? 1 : 0.5}}>{item.brand ?? "N/A"}</p>
         <p className="text-xs">{item.types.join(", ")}</p>
         <div className="mt-2 flex overflow-x-auto hide-scrollbar whitespace-nowrap">
           {locationStrings.map((locationString, index) => (
@@ -1177,7 +1180,9 @@ function PackingListInfo({
   const createLocation = useMutation(api.locations.create);
 
   const updatePackingList = useMutation(api.packinglists.update);
-  const markPackingListExpired = useMutation(api.packinglists.markPackingListExpired);
+  const markPackingListExpired = useMutation(
+    api.packinglists.markPackingListExpired,
+  );
 
   useEffect(() => {
     clearFields();

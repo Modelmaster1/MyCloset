@@ -23,7 +23,7 @@ export default defineSchema({
   clothingInfoItems: defineTable({
     pic: v.id("_storage"),
     colors: v.array(colorEnum),
-    brand: v.string(),
+    brand: v.optional(v.string()),
     types: v.array(v.string()),
     user: v.string(),
   }),

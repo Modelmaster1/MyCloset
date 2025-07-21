@@ -56,7 +56,7 @@ export default function DetailView({
 }) {
   const [newFile, setNewFile] = useState<File | null>(null);
   const [selectedColors, setSelectedColors] = useState<Color[]>(item.colors);
-  const [brandInput, setBrandInput] = useState(item.brand);
+  const [brandInput, setBrandInput] = useState<string>(item.brand ?? "");
   const [loading, setLoading] = useState(false);
   const [newPieceDialogOpen, setNewPieceDialogOpen] = useState(false);
 
@@ -76,7 +76,7 @@ export default function DetailView({
   });
 
   const hasChanges =
-    brandInput !== item.brand ||
+    brandInput !== (item.brand ?? "") ||
     new Set(types).size !== new Set(item.types).size ||
     !types.every((t) => item.types.includes(t)) ||
     new Set(selectedColors).size !== new Set(item.colors).size ||
@@ -88,7 +88,7 @@ export default function DetailView({
   }, [item]);
 
   function revertAnyChanges() {
-    setBrandInput(item.brand);
+    setBrandInput(item.brand ?? "");
     setTypes(item.types);
     setSelectedColors(item.colors);
     setNewFile(null);
@@ -109,12 +109,14 @@ export default function DetailView({
       brand?: string;
       types?: string[];
       colors?: Color[];
+      forceBrand?: boolean;
     } = {
       currentId: item._id,
     };
 
-    if (brandInput !== item.brand) {
-      updateArgs.brand = brandInput;
+    if (brandInput !== (item.brand ?? "")) {
+      updateArgs.brand = brandInput.trim() === "" ? undefined : brandInput;
+      updateArgs.forceBrand = true;
     }
 
     if (

@@ -100,7 +100,6 @@ export default function NewItemForm() {
     const numOfItems = items.length;
     const itemsToAdd = items.map(async (item) => {
       if (
-        item.brand.trim() === "" ||
         item.colors.length === 0 ||
         item.types.length === 0 ||
         item.amount === 0
@@ -123,7 +122,7 @@ export default function NewItemForm() {
       return {
         storageId: storageId as Id<"_storage">,
         colors: item.colors,
-        brand: item.brand,
+        brand: item.brand.trim() === "" ? undefined : item.brand,
         types: item.types,
         piecesAmount: item.amount,
       };
