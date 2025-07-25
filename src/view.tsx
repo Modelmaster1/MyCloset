@@ -201,7 +201,17 @@ export default function View() {
 
   const filteredItems = items.filter((item) => {
     const lowerCaseSearchTerm = searchTerm.toLowerCase();
-    const searchWords = lowerCaseSearchTerm.split(" ").filter(Boolean); // Split by space and remove empty strings
+
+    // Separate positive and negative search terms
+    const positiveSearchWords = lowerCaseSearchTerm
+      .split(" ")
+      .filter((word) => word && !word.startsWith("!")); // Words that don't start with "!"
+    
+    const negativeSearchWords = lowerCaseSearchTerm
+      .split(" ")
+      .filter((word) => word && word.startsWith("!")) // Words that start with "!"
+      .map((word) => word.substring(1)) // Remove the "!" prefix
+      .filter((word) => word.length > 0); // Remove empty strings
 
     if (selectedPackingList) {
       const piecesInPackingList = item.pieces.filter((piece) =>
@@ -218,30 +228,47 @@ export default function View() {
       }
     }
 
-    // If there's no search term, return all items
-    if (searchWords.length === 0) {
+    // Handle negative filtering first if any negative terms exist
+    if (negativeSearchWords.length > 0) {
+      const itemContainsNegativeTerm = negativeSearchWords.some((word) => {
+        const brandMatches = item.brand
+          ? item.brand.toLowerCase() == word.toLowerCase()
+          : false;
+        const typeMatches = item.types.some((type) =>
+          type.toLowerCase() == word.toLowerCase(),
+        );
+        const colorMatches = item.colors.some((color) =>
+          color.toLowerCase() == word.toLowerCase(),
+        );
+        return brandMatches || typeMatches || colorMatches;
+      });
+
+      // If the item contains any of the negative terms, it should be filtered OUT
+      if (itemContainsNegativeTerm) {
+        return false;
+      }
+    }
+
+    // If there are no positive search terms, return true (after potential negative filtering)
+    // This means if you only search for "!sport", and an item doesn't have "sport", it will be returned.
+    if (positiveSearchWords.length === 0) {
       return true;
     }
 
-    // Check if all search words are present in any of the item's attributes
-    return searchWords.every((word) => {
-      // Check if the word is in the brand
-
+    // Check if all positive search words are present in any of the item's attributes
+    return positiveSearchWords.every((word) => {
       const brandMatches = item.brand
         ? item.brand.toLowerCase().includes(word)
         : false;
 
-      // Check if the word is in any of the types
       const typeMatches = item.types.some((type) =>
         type.toLowerCase().includes(word),
       );
 
-      // Check if the word is in any of the colors
       const colorMatches = item.colors.some((color) =>
         color.toLowerCase().includes(word),
       );
 
-      // The word must match at least one of the conditions
       return brandMatches || typeMatches || colorMatches;
     });
   });
@@ -953,7 +980,9 @@ function ItemView({
         )}
       </div>
       <div className="bg-black bg-opacity-50 text-white p-2">
-        <p className="text-sm" style={{opacity: item.brand ? 1 : 0.5}}>{item.brand ?? "N/A"}</p>
+        <p className="text-sm" style={{ opacity: item.brand ? 1 : 0.5 }}>
+          {item.brand ?? "N/A"}
+        </p>
         <p className="text-xs">{item.types.join(", ")}</p>
         <div className="mt-2 flex overflow-x-auto hide-scrollbar whitespace-nowrap">
           {locationStrings.map((locationString, index) => (
