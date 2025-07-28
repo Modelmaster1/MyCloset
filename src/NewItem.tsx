@@ -49,6 +49,7 @@ import BrandInput from "./newItemInputs/brandInput";
 import TypesInput from "./newItemInputs/typesInput";
 import AmountInput from "./newItemInputs/amountInput";
 import ColorInput from "./newItemInputs/colorInput";
+import { convertToWebpNative } from "./compressAndConvertImage";
 
 interface ClothingInfoFormItem {
   placeholderID: string;
@@ -59,7 +60,7 @@ interface ClothingInfoFormItem {
   amount: number;
 
   hasError?: boolean;
-  errors?: ("types" | "colors" | "amount" | "upload"| "network")[];
+  errors?: ("types" | "colors" | "amount" | "upload" | "network")[];
 }
 
 export default function NewItemForm() {
@@ -159,10 +160,20 @@ export default function NewItemForm() {
 
       // --- File Upload ---
       try {
+        const webPFile =
+          await convertToWebpNative(item.file);
+
+        if (!webPFile) {
+          console.error("Image conversion failed. Cannot upload.");
+          throw new Error(
+            `Image conversion failed. Cannot upload.`,
+          );
+        }
+
         const result = await fetch(postUrl, {
           method: "POST",
-          headers: { "Content-Type": item.file!.type }, // ! is okay here as we assume file exists if validation passed
-          body: item.file,
+          headers: { "Content-Type": webPFile.type }, // ! is okay here as we assume file exists if validation passed
+          body: webPFile,
         });
 
         if (!result.ok) {

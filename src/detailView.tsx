@@ -44,6 +44,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SearchableCreateSelect } from "./NewItem";
+import { convertToWebpNative } from "./compressAndConvertImage";
 
 export default function DetailView({
   open,
@@ -135,10 +136,17 @@ export default function DetailView({
 
     if (newFile) {
       const postUrl = await generateUploadUrl();
+      const webPFile = await convertToWebpNative(newFile);
+
+      if (!webPFile) {
+        console.error("Image conversion failed. Cannot upload.");
+        throw new Error(`Image conversion failed. Cannot upload.`);
+      }
+
       const result = await fetch(postUrl, {
         method: "POST",
-        headers: { "Content-Type": newFile!.type },
-        body: newFile,
+        headers: { "Content-Type": webPFile.type }, // ! is okay here as we assume file exists if validation passed
+        body: webPFile,
       });
 
       const { storageId } = await result.json();
@@ -518,7 +526,9 @@ function LocationHistoryPieceItem({
                   >
                     {loading ? (
                       <LoaderCircleIcon className="animate-spin" />
-                    ) : "Mark item as found"}
+                    ) : (
+                      "Mark item as found"
+                    )}
                   </Button>
                 </div>
               </DialogContent>
@@ -568,7 +578,9 @@ function LocationHistoryPieceItem({
                 >
                   {loading ? (
                     <LoaderCircleIcon className="animate-spin" />
-                  ) : "Yes, delete item"}
+                  ) : (
+                    "Yes, delete item"
+                  )}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
