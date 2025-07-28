@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Color } from "convex/schema";
+import { CircleAlertIcon } from "lucide-react";
 import { Dispatch, SetStateAction, useState } from "react";
 
 export default function ColorInput({
   selectedColors,
   setSelectedColors,
   simpleInput = false,
+  hasError = false,
 }: {
+  hasError?: boolean;
   selectedColors: Color[];
   setSelectedColors: Dispatch<SetStateAction<Color[]>>;
   simpleInput?: boolean;
@@ -64,6 +67,13 @@ export default function ColorInput({
         >
           Show {showAllColors ? "less" : "more"}
         </Button>
+      )}
+
+      {hasError && (
+        <div className="flex gap-2 items-center text-red-500">
+          <CircleAlertIcon className="h-4 w-4" />
+          <div>Please add at least one color</div>
+        </div>
       )}
     </div>
   );

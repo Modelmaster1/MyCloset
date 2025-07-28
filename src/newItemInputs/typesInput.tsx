@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PlusIcon, XIcon } from "lucide-react";
+import { CircleAlertIcon, PlusIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 export const existingTypes = [
@@ -33,9 +33,11 @@ export const existingTypes = [
 export default function TypesInput({
   types,
   setTypes,
+  hasError = false,
   simpleInput = false,
 }: {
   types: string[];
+  hasError?: boolean;
   setTypes: React.Dispatch<React.SetStateAction<string[]>>;
   simpleInput?: boolean;
 }) {
@@ -88,7 +90,9 @@ export default function TypesInput({
   };
 
   return (
-    <div className={`grid w-full items-center ${simpleInput ? "gap-1" : "gap-3"}`}>
+    <div
+      className={`grid w-full items-center ${simpleInput ? "gap-1" : "gap-3"}`}
+    >
       {simpleInput !== true && <Label htmlFor="type">Types</Label>}
       {types.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
@@ -98,7 +102,7 @@ export default function TypesInput({
                 setTypes(types.filter((t) => t !== type));
               }}
               key={index}
-              className={`flex cursor-pointer items-center ${simpleInput ? "" : "bg-neutral-800 p-1 px-2 gap-1" } rounded-sm text-sm`}
+              className={`flex cursor-pointer items-center ${simpleInput ? "" : "bg-neutral-800 p-1 px-2 gap-1"} rounded-sm text-sm`}
             >
               {type}
               <XIcon className="h-3 w-3" />
@@ -107,39 +111,50 @@ export default function TypesInput({
         </div>
       )}
       <div className="relative">
-        <div className="flex items-center gap-2">
-          {simpleInput == true ? (
-            <>
-              <input
-                className="text-base font-light uppercase focus:outline-none w-full"
-                {...props}
-              />
-              <button
-                onClick={() => {
-                  if (newTypeInput.trim() === "") return;
-                  setTypes([...types, newTypeInput.toLowerCase()]);
-                  setNewTypeInput("");
-                }}
-                className={"cursor-pointer" + (newTypeInput.trim() === "" ? " opacity-50" : "")}
-                disabled={newTypeInput.trim() === ""}
-              >
-                <PlusIcon />
-              </button>
-            </>
-          ) : (
-            <>
-              <Input {...props} className="rounded-none" />
-              <Button
-                onClick={() => {
-                  if (newTypeInput.trim() === "") return;
-                  setTypes([...types, newTypeInput.toLocaleLowerCase()]);
-                  setNewTypeInput("");
-                }}
-                className="rounded-none"
-              >
-                <PlusIcon />
-              </Button>
-            </>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            {simpleInput == true ? (
+              <>
+                <input
+                  className="text-base font-light uppercase focus:outline-none w-full"
+                  {...props}
+                />
+                <button
+                  onClick={() => {
+                    if (newTypeInput.trim() === "") return;
+                    setTypes([...types, newTypeInput.toLowerCase()]);
+                    setNewTypeInput("");
+                  }}
+                  className={
+                    "cursor-pointer" +
+                    (newTypeInput.trim() === "" ? " opacity-50" : "")
+                  }
+                  disabled={newTypeInput.trim() === ""}
+                >
+                  <PlusIcon />
+                </button>
+              </>
+            ) : (
+              <>
+                <Input {...props} className={`${hasError && "border border-red-500"} rounded-none`} />
+                <Button
+                  onClick={() => {
+                    if (newTypeInput.trim() === "") return;
+                    setTypes([...types, newTypeInput.toLocaleLowerCase()]);
+                    setNewTypeInput("");
+                  }}
+                  className="rounded-none"
+                >
+                  <PlusIcon />
+                </Button>
+              </>
+            )}
+          </div>
+          {hasError && (
+            <div className="flex gap-2 items-center text-red-500">
+              <CircleAlertIcon className="h-4 w-4" />
+              <div>Please add at least one type</div>
+            </div>
           )}
         </div>
         {showTypesSuggestions && filteredTypes.length > 0 && (

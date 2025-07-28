@@ -19,6 +19,7 @@ export default function AmountInput({
           variant="outline"
           size="icon"
           className="rounded-none"
+          disabled={amount <= 1}
           onClick={() => setAmount(Math.max(1, amount - 1))}
         >
           -
