@@ -103,16 +103,6 @@ export default function NewItemForm() {
       return;
     }
 
-    let postUrl: string;
-    try {
-      postUrl = await generateUploadUrl();
-    } catch (error) {
-      console.error("Failed to generate upload URL:", error);
-      alert("Failed to prepare for item upload. Please try again.");
-      setLoading(false);
-      return;
-    }
-
     // This will store the results for each item, including success/failure status
     const processingResults: Array<{
       originalItem: ClothingInfoFormItem;
@@ -169,6 +159,8 @@ export default function NewItemForm() {
             `Image conversion failed. Cannot upload.`,
           );
         }
+
+        const postUrl = await generateUploadUrl();
 
         const result = await fetch(postUrl, {
           method: "POST",

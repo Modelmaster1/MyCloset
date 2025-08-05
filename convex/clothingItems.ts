@@ -68,15 +68,24 @@ export const list = query({
       .filter((q) => q.eq(q.field("user"), userID))
       .collect();
 
-    const urls = await Promise.all(
-      infoItems.map((item) => ctx.storage.getUrl(item.pic)),
+    const imageModel = await Promise.all(
+      infoItems.map(async (item) => {
+        const f = await ctx.db.system.get(item.pic);
+        const url = await ctx.storage.getUrl(item.pic);
+        return {
+          extension: f?.contentType ?? "image/jpeg",
+          url: url,
+        };
+      }),
     );
 
     const result = infoItems.map((infoItem, index) => {
       const allPieces = pieces.filter((piece) => piece.info === infoItem._id);
       return {
         ...infoItem,
-        imageURL: urls[index],
+        storageId: infoItem.pic,
+        imageURL: imageModel[index].url,
+        contentType: imageModel[index].extension,
         pieces: allPieces.map((piece) => {
           const matchedLoc = locations.find(
             (location) => location._id === piece.currentLocation,
@@ -161,7 +170,12 @@ export const editInfo = mutation({
     } = {};
 
     if (args.pic !== undefined) {
+      const currentObject = await ctx.db.get(args.currentId);
       patchObject.pic = args.pic;
+
+      if (patchObject && currentObject?.pic) {
+        ctx.storage.delete(currentObject?.pic);
+      }
     }
     if (args.brand !== undefined || args.forceBrand == true) {
       patchObject.brand = args.brand;

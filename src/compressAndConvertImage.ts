@@ -10,7 +10,7 @@
  */
 export async function convertToWebpNative(
   file: File,
-  quality: number = 0.02
+  quality: number = 60
 ): Promise<File> {
   if (!file.type.startsWith("image/")) {
     throw new Error(`Expected image/*, got ${file.type}`);

@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as clothingItems from "../clothingItems.js";
+import type * as convert from "../convert.js";
 import type * as locations from "../locations.js";
 import type * as packinglists from "../packinglists.js";
 import type * as upload from "../upload.js";
@@ -28,6 +29,7 @@ import type * as upload from "../upload.js";
  */
 declare const fullApi: ApiFromModules<{
   clothingItems: typeof clothingItems;
+  convert: typeof convert;
   locations: typeof locations;
   packinglists: typeof packinglists;
   upload: typeof upload;
