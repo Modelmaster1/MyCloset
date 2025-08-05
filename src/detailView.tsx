@@ -44,7 +44,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { SearchableCreateSelect } from "./NewItem";
-import { convertToWebpNative } from "./compressAndConvertImage";
+import { convertToWebp } from "./compressAndConvertImage";
 
 export default function DetailView({
   open,
@@ -136,7 +136,7 @@ export default function DetailView({
 
     if (newFile) {
       const postUrl = await generateUploadUrl();
-      const webPFile = await convertToWebpNative(newFile);
+      const webPFile = await convertToWebp(newFile);
 
       if (!webPFile) {
         console.error("Image conversion failed. Cannot upload.");

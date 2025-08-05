@@ -33,6 +33,7 @@
     "cmdk": "^1.1.1",
     "convex": "^1.23.0",
     "date-fns": "^4.1.0",
+    "heic-to": "^1.2.1",
     "lucide-react": "^0.525.0",
     "react": "^19.0.0",
     "react-day-picker": "^9.8.0",

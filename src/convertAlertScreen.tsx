@@ -9,9 +9,9 @@ import {
 } from "./components/ui/card";
 import { ClothingInfoItem } from "./view";
 import { api } from "../convex/_generated/api";
-import { convertToWebpNative } from "./compressAndConvertImage";
 import { useState } from "react";
 import { LoaderCircleIcon } from "lucide-react";
+import { convertToWebp } from "./compressAndConvertImage";
 
 export function ConvertAlertScreen({ items }: { items: ClothingInfoItem[] }) {
   const generateUploadUrl = useMutation(api.upload.generateUploadUrl);
@@ -46,7 +46,7 @@ export function ConvertAlertScreen({ items }: { items: ClothingInfoItem[] }) {
         const fileName = `item-${item._id}`;
         const file = new File([blob], fileName, { type: blob.type });
 
-        const webPFile = await convertToWebpNative(file);
+        const webPFile = await convertToWebp(file);
 
         const postUrl = await generateUploadUrl();
 

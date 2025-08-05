@@ -49,7 +49,7 @@ import BrandInput from "./newItemInputs/brandInput";
 import TypesInput from "./newItemInputs/typesInput";
 import AmountInput from "./newItemInputs/amountInput";
 import ColorInput from "./newItemInputs/colorInput";
-import { convertToWebpNative } from "./compressAndConvertImage";
+import { convertToWebp } from "./compressAndConvertImage";
 
 interface ClothingInfoFormItem {
   placeholderID: string;
@@ -74,15 +74,26 @@ export default function NewItemForm() {
   const generateUploadUrl = useMutation(api.upload.generateUploadUrl);
   const createClothingItem = useMutation(api.clothingItems.create);
 
-  const handleFilesAccepted = useCallback((files: File[]) => {
-    const newClothingItems = files.map((file) => ({
-      placeholderID: crypto.randomUUID() + file.name,
-      file,
-      brand: "",
-      colors: [],
-      types: [],
-      amount: 1,
-    }));
+  const handleFilesAccepted = useCallback(async (files: File[]) => {
+    const newClothingItems = await Promise.all(
+      files.map(async (file) => {
+        const webPFile = await convertToWebp(file);
+
+        if (!webPFile) {
+          console.error("Image conversion failed. Cannot upload.");
+          throw new Error(`Image conversion failed. Cannot upload.`);
+        }
+
+        return {
+          placeholderID: crypto.randomUUID() + file.name,
+          file: webPFile, // Use the converted WebP file
+          brand: "",
+          colors: [],
+          types: [],
+          amount: 1,
+        };
+      }),
+    );
     setItems((prevItems) => [...prevItems, ...newClothingItems]);
   }, []);
 
@@ -150,22 +161,12 @@ export default function NewItemForm() {
 
       // --- File Upload ---
       try {
-        const webPFile =
-          await convertToWebpNative(item.file);
-
-        if (!webPFile) {
-          console.error("Image conversion failed. Cannot upload.");
-          throw new Error(
-            `Image conversion failed. Cannot upload.`,
-          );
-        }
-
         const postUrl = await generateUploadUrl();
 
         const result = await fetch(postUrl, {
           method: "POST",
-          headers: { "Content-Type": webPFile.type }, // ! is okay here as we assume file exists if validation passed
-          body: webPFile,
+          headers: { "Content-Type": item.file.type }, // ! is okay here as we assume file exists if validation passed
+          body: item.file,
         });
 
         if (!result.ok) {
@@ -314,7 +315,7 @@ export default function NewItemForm() {
           <div className="flex flex-col gap-3 max-h-[80vh] overflow-y-auto -m-1 p-1">
             <FileDropzone
               onFilesAccepted={handleFilesAccepted}
-              acceptedFileTypes={["image/png", "image/jpeg"]}
+              acceptedFileTypes={["image/png", "image/jpeg", "image/webp"]}
             />
             <div className="flex gap-2 items-center justify-between">
               <div className="flex flex-col gap-1">
@@ -350,7 +351,7 @@ export default function NewItemForm() {
               <SingleItemForm
                 handleRemoveItem={handleRemoveItem}
                 handleItemDataChange={handleItemDataChange}
-                key={item.file.name}
+                key={item.placeholderID}
                 item={item}
               />
             ))}

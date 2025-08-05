@@ -1,4 +1,4 @@
-// src/utils/webpNative.ts
+import { heicTo, isHeic } from "heic-to";
 
 /**
  * Converts an image File (JPEG/PNG/…) to WebP via
@@ -8,14 +8,10 @@
  * @param quality – [0–1] or [0–100], defaults to 0.8 (80%)
  * @returns       – new File of type image/webp
  */
-export async function convertToWebpNative(
-  file: File,
-  quality: number = 60
-): Promise<File> {
+async function convertToWebpNative(file: File, quality: number): Promise<File> {
   if (!file.type.startsWith("image/")) {
     throw new Error(`Expected image/*, got ${file.type}`);
   }
-
   // normalize quality to [0,1]
   let q = quality > 1 ? quality / 100 : quality;
   q = Math.max(0, Math.min(1, q));
@@ -24,15 +20,15 @@ export async function convertToWebpNative(
   const img = new Image();
   const url = URL.createObjectURL(file);
   await new Promise<void>((res, rej) => {
-    img.onload  = () => res();
+    img.onload = () => res();
     img.onerror = () => rej(new Error("Failed to load image"));
-    img.src     = url;
+    img.src = url;
   });
   URL.revokeObjectURL(url);
 
   // 2) draw onto canvas
   const canvas = document.createElement("canvas");
-  canvas.width  = img.naturalWidth;
+  canvas.width = img.naturalWidth;
   canvas.height = img.naturalHeight;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Could not get 2D context");
@@ -40,7 +36,7 @@ export async function convertToWebpNative(
 
   // 3) export as WebP blob (metadata stripped)
   const blob: Blob | null = await new Promise((res) =>
-    canvas.toBlob(res, "image/webp", q)
+    canvas.toBlob(res, "image/webp", q),
   );
   if (!blob) throw new Error("WebP conversion failed");
 
@@ -50,4 +46,31 @@ export async function convertToWebpNative(
     type: "image/webp",
     lastModified: Date.now(),
   });
+}
+
+export async function convertToWebp(
+  file: File,
+  quality: number = 10,
+): Promise<File> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error(`Expected image/*, got ${file.type}`);
+  }
+
+  if (await isHeic(file)) {
+    const jpeg = await heicTo({
+      blob: file,
+      type: "image/jpeg",
+      quality: 0.8,
+    });
+    const jpegFile = new File(
+      [jpeg],
+      file.name.replace(/\.[^/.]+$/, ".jpeg"),
+      {},
+    );
+    const webp = await convertToWebpNative(jpegFile, quality);
+    return webp;
+  } else {
+    const webpFile = await convertToWebpNative(file, quality);
+    return webpFile;
+  }
 }
