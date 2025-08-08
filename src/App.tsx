@@ -2,7 +2,7 @@
 
 import { Authenticated, Unauthenticated } from "convex/react";
 import View from "./view";
-import HomePage from "./HomePage";
+import LandingPage from "./HomeView";
 
 export default function App() {
   return (
@@ -11,7 +11,7 @@ export default function App() {
         <View />
       </Authenticated>
       <Unauthenticated>
-        <HomePage />
+        <LandingPage />
       </Unauthenticated>
     </>
   );
